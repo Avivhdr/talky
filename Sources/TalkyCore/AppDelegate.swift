@@ -7,6 +7,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
     private let pipeStore = PipeStore()
     private lazy var controller = Controller(configStore: configStore, pipeStore: pipeStore)
     private lazy var settings = SettingsWindowController(configStore: configStore, pipeStore: pipeStore)
+    private lazy var onboarding = OnboardingWindowController { [weak self] in self?.startKeyMonitor() }
     private let keyMonitor = KeyMonitor()
     private var statusItem: NSStatusItem!
     private var watcher: DirectoryWatcher?
@@ -34,9 +35,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
             }
         }
 
-        Task {
-            _ = await AudioRecorder.requestPermission()
-            startKeyMonitor()
+        // Onboarding asks for permissions one at a time, so skip the launch-time prompts.
+        if OnboardingWindowController.isDone {
+            Task {
+                _ = await AudioRecorder.requestPermission()
+                startKeyMonitor()
+            }
+        } else {
+            startKeyMonitor(prompt: false)
+            onboarding.show()
         }
     }
 
@@ -56,10 +63,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
     }
 
     /// The event tap needs Accessibility. Prompt once, then keep retrying until the user grants it.
-    private func startKeyMonitor() {
-        if keyMonitor.start() { return }
-        Permissions.promptAccessibility()
-        Permissions.promptInputMonitoring()
+    private func startKeyMonitor(prompt: Bool = true) {
+        if keyMonitor.start() { return updateIcon() }
+        if prompt {
+            Permissions.promptAccessibility()
+            Permissions.promptInputMonitoring()
+        }
         tapRetry?.invalidate()
         tapRetry = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] t in
             MainActor.assumeIsolated {
@@ -112,22 +121,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
             addInfo(menu, "Waiting for Accessibility permission…")
         }
         if let err = configStore.loadError ?? pipeStore.loadError { addInfo(menu, err) }
-        let key = HotkeySpec.label(c.hotkey)
-        addInfo(menu, "Hold \(key) to dictate, double-tap for hands-free")
-        addInfo(menu, "Tap \(HotkeySpec.label(c.transformHotkey)) on selected text to transform")
-        let backend = (try? TranscriptionService.plan(c.transcription).label) ?? "Transcription misconfigured"
-        let pipe = c.llm.enabled ? (pipeStore.defaultPipe?.name ?? "Raw") : "Raw"
-        addInfo(menu, "\(backend) · pipe: \(pipe)")
-        menu.addItem(.separator())
+        if !keyMonitor.isRunning || configStore.loadError != nil || pipeStore.loadError != nil {
+            menu.addItem(.separator())
+        }
 
-        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
-        login.state = LoginItem.isEnabled ? .on : .off
-        login.target = self
-        menu.addItem(login)
         addAction(menu, "Settings…", #selector(openSettings), ",")
-        addAction(menu, "Pipes…", #selector(openPipes), "")
-        addAction(menu, "Open Config Folder", #selector(openConfigFolder), "")
-        addAction(menu, "Reload Config", #selector(reloadConfig), "")
+        if Updater.shared.isAvailable { addAction(menu, "Check for Updates…", #selector(checkForUpdates), "") }
         menu.addItem(.separator())
         addAction(menu, "Quit Talky", #selector(quit), "q")
     }
@@ -145,10 +144,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
     }
 
     @objc private func toggleEnabled() { configStore.config.enabled.toggle() }
-    @objc private func toggleLogin() { LoginItem.set(!LoginItem.isEnabled) }
     @objc private func openSettings() { settings.show() }
-    @objc private func openPipes() { settings.show(tab: .pipes) }
-    @objc private func openConfigFolder() { NSWorkspace.shared.open(Paths.configDir) }
-    @objc private func reloadConfig() { configStore.load(); pipeStore.load() }
+    @objc private func checkForUpdates() { Updater.shared.checkNow() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

@@ -71,3 +71,22 @@ final class TextTests: XCTestCase {
         XCTAssertEqual(String(decoding: d[8..<12], as: UTF8.self), "WAVE")
     }
 }
+
+final class EnvWriteTests: XCTestCase {
+    func testSetKeepsOtherLinesAndRemovesKeys() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        setenv("TALKY_CONFIG_DIR", dir.path, 1)
+        defer { unsetenv("TALKY_CONFIG_DIR"); try? FileManager.default.removeItem(at: dir) }
+
+        try "# keys\nexport GROQ_API_KEY=old\nOTHER=1\n".write(to: Paths.envFile, atomically: true, encoding: .utf8)
+        Env.set("GROQ_API_KEY", " new ")
+        Env.set("ANTHROPIC_API_KEY", "sk-ant")
+        XCTAssertEqual(try String(contentsOf: Paths.envFile, encoding: .utf8),
+                       "# keys\nGROQ_API_KEY=new\nOTHER=1\nANTHROPIC_API_KEY=sk-ant\n")
+
+        Env.set("ANTHROPIC_API_KEY", "")
+        XCTAssertNil(Env.value("ANTHROPIC_API_KEY"))
+        XCTAssertEqual(Env.value("GROQ_API_KEY"), "new")
+    }
+}

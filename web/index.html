@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talky: hold a key, talk, let go</title>
+<meta name="description" content="Menu bar dictation for macOS. Hold fn, talk, and the text appears wherever your cursor is.">
+<style>
+  :root { --ink: #1d1d1f; --muted: #6e6e73; --line: #e5e5ea; --accent: #2f6bff; --bg: #fbfbfd; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #f5f5f7; --muted: #a1a1a6; --line: #2c2c2e; --accent: #5b8cff; --bg: #111113; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 96px 24px 64px; }
+  h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 16px; }
+  h2 { font-size: 20px; margin: 56px 0 12px; }
+  p { margin: 0 0 12px; }
+  .lede { font-size: 21px; color: var(--muted); margin-bottom: 32px; }
+  .btn { display: inline-block; background: var(--accent); color: #fff; text-decoration: none;
+         padding: 12px 22px; border-radius: 12px; font-weight: 600; }
+  .fine { color: var(--muted); font-size: 14px; margin-top: 12px; }
+  kbd { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 6px;
+        border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 10px 0; border-top: 1px solid var(--line); vertical-align: top; }
+  td:first-child { width: 38%; padding-right: 16px; white-space: nowrap; }
+  footer { margin-top: 72px; color: var(--muted); font-size: 14px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Talky</h1>
+  <p class="lede">Hold <kbd>fn</kbd>, talk, let go. The text appears wherever your cursor is, with the "um"s taken out.</p>
+  <a class="btn" href="/downloads/Talky-latest.dmg">Download for macOS</a>
+  <p class="fine">macOS 14 or later, Apple silicon and Intel. Drag Talky into Applications. It updates itself.</p>
+
+  <h2>How it works</h2>
+  <table>
+    <tr><td>Hold <kbd>fn</kbd></td><td>Records while you hold it, pastes when you let go.</td></tr>
+    <tr><td>Double-tap <kbd>fn</kbd></td><td>Hands-free. Tap once more to stop.</td></tr>
+    <tr><td>Select text, tap right <kbd>⌥</kbd></td><td>Rewrites the selection: formal, bullets, or an instruction you say out loud.</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Cancels.</td></tr>
+  </table>
+
+  <h2>What you need</h2>
+  <p>A <a href="https://console.groq.com/keys">Groq API key</a> for transcription. The free tier covers normal dictation.</p>
+  <p>An <a href="https://console.anthropic.com/settings/keys">Anthropic API key</a> if you want cleanup and rewrites. Without one, Talky pastes exactly what you said.</p>
+  <p>Keys stay on your Mac in <code>~/.config/talky/.env</code>. Talky has no account and no telemetry. Audio goes to Groq, text goes to Anthropic, and nothing else leaves your machine.</p>
+
+  <h2>Uninstall</h2>
+  <p>Settings › Uninstall Talky. It turns off launch at login, clears its permissions, deletes its files and moves itself to the Trash.</p>
+
+  <footer><a href="https://github.com/Avivhdr/talky">Source on GitHub</a></footer>
+</main>
+</body>
+</html>

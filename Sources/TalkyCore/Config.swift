@@ -53,6 +53,31 @@ public enum Env {
         guard let v, !v.isEmpty else { return nil }
         return v
     }
+
+    /// Writes or removes one key in the .env file and keeps every other line as it was.
+    /// Writes through a symlink (install.sh may link the file to a repo checkout).
+    public static func set(_ key: String, _ value: String?) {
+        Paths.ensure()
+        let url = Paths.envFile.resolvingSymlinksInPath()
+        let text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        var lines = text.isEmpty ? [] : text.components(separatedBy: "\n")
+        if lines.last == "" { lines.removeLast() }
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let entry = "\(key)=\(trimmed)"
+        let matches: (String) -> Bool = { line in
+            var l = line.trimmingCharacters(in: .whitespaces)
+            if l.hasPrefix("export ") { l = String(l.dropFirst(7)) }
+            return l.hasPrefix(key + "=") || l.hasPrefix(key + " =")
+        }
+        if let i = lines.firstIndex(where: matches) {
+            lines[i] = entry
+        } else if !trimmed.isEmpty {
+            lines.append(entry)
+        }
+        let out = lines.joined(separator: "\n") + "\n"
+        FileManager.default.createFile(atPath: url.path, contents: Data(out.utf8),
+                                       attributes: [.posixPermissions: 0o600])
+    }
 }
 
 public struct Config: Codable, Equatable {
@@ -88,7 +113,8 @@ public struct Config: Codable, Equatable {
 
     public struct LLM: Codable, Equatable {
         public var enabled = true
-        public var model = "claude-opus-5-5"
+        /// Haiku is the default because cleanup runs on every dictation: about 0.7s against 3s for Opus.
+        public var model = "claude-haiku-4-5-20251001"
         /// low | medium | high. Ignored for models that don't take an effort setting.
         public var effort = "low"
         public var timeoutSeconds = 30.0

@@ -73,6 +73,8 @@ public final class PillController {
         model.content = content
         relayout()
         panel.orderFrontRegardless()
+        // SwiftUI can finish laying out wrapped text a tick later; measure again so nothing gets clipped.
+        DispatchQueue.main.async { [weak self] in self?.relayout() }
     }
 
     public func hide() {
@@ -131,10 +133,13 @@ struct PillRootView: View {
                 HStack(spacing: 8) {
                     Image(systemName: isError ? "exclamationmark.triangle.fill" : "info.circle")
                         .foregroundStyle(isError ? .yellow : .white.opacity(0.8))
-                    Text(text).lineLimit(2).frame(maxWidth: 380, alignment: .leading)
+                    Text(text)
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 420, alignment: .leading)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 9)
-                .background(Capsule().fill(Color.black.opacity(0.85)))
+                .background(RoundedRectangle(cornerRadius: 17).fill(Color.black.opacity(0.85)))
             }
         }
         .font(.system(size: 13, weight: .medium))

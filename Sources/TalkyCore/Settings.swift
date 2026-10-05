@@ -19,14 +19,17 @@ public final class SettingsWindowController {
         tabState.tab = tab
         if window == nil {
             let view = SettingsView(config: configStore, pipes: pipeStore, tabState: tabState)
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 600),
+            // About twice the area of the old 820x600 window, shrunk to fit smaller screens.
+            let visible = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1440, height: 900)
+            let size = NSSize(width: min(1200, visible.width - 40), height: min(860, visible.height - 40))
+            let w = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
                              backing: .buffered, defer: false)
             w.title = "Talky Settings"
             w.contentView = NSHostingView(rootView: view)
             w.isReleasedWhenClosed = false
             w.center()
-            w.setFrameAutosaveName("TalkySettings")
+            w.setFrameAutosaveName("TalkySettingsLarge")
             window = w
         }
         NSApp.activate(ignoringOtherApps: true)
@@ -34,7 +37,7 @@ public final class SettingsWindowController {
     }
 }
 
-public enum SettingsTab: Hashable { case general, pipes, test }
+public enum SettingsTab: Hashable { case general, pipes }
 
 @MainActor
 final class SettingsTabState: ObservableObject {
@@ -49,11 +52,10 @@ struct SettingsView: View {
     var body: some View {
         TabView(selection: $tabState.tab) {
             GeneralTab(store: config).tabItem { Label("General", systemImage: "gearshape") }.tag(SettingsTab.general)
-            PipesTab(store: pipes).tabItem { Label("Pipes", systemImage: "line.3.horizontal.decrease") }.tag(SettingsTab.pipes)
-            TestTab(pipes: pipes, config: config).tabItem { Label("Test", systemImage: "flask") }.tag(SettingsTab.test)
+            PipesTab(store: pipes, config: config).tabItem { Label("Pipes", systemImage: "line.3.horizontal.decrease") }.tag(SettingsTab.pipes)
         }
         .padding()
-        .frame(minWidth: 720, minHeight: 520)
+        .frame(minWidth: 900, minHeight: 640)
     }
 }
 
@@ -61,85 +63,65 @@ struct SettingsView: View {
 
 struct GeneralTab: View {
     @ObservedObject var store: ConfigStore
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @ObservedObject private var updater = Updater.shared
+    @State private var launchAtLogin = LoginItem.isEnabled
     @State private var permissions = PermissionState()
     private let refresh = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
 
     static let mainHotkeys = ["fn", "right_option", "right_command", "right_control", "ctrl+opt+space", "f13"]
     static let transformHotkeys = ["right_option", "right_command", "right_control", "ctrl+opt+t", "f14"]
+    static let languages = [("auto", "Detect automatically"), ("en", "English"), ("he", "Hebrew"), ("es", "Spanish"),
+                            ("fr", "French"), ("de", "German"), ("it", "Italian"), ("pt", "Portuguese"),
+                            ("ru", "Russian"), ("ar", "Arabic"), ("zh", "Chinese"), ("ja", "Japanese")]
+    static let models = [("claude-haiku-4-5-20251001", "Haiku 4.5 (fastest)"), ("claude-sonnet-5-5", "Sonnet 5.5"),
+                         ("claude-opus-5-5", "Opus 5.5 (slowest)")]
 
     var body: some View {
         Form {
             if let err = store.loadError {
                 Text(err).foregroundStyle(.red)
             }
-            Section("Talky") {
-                Toggle("Enabled", isOn: $store.config.enabled)
+            if !permissions.allGranted {
+                Section("Permissions") {
+                    PermissionRows(state: permissions)
+                }
+            }
+            Section("Dictation") {
+                hotkeyPicker("Dictate", $store.config.hotkey, Self.mainHotkeys)
+                hotkeyPicker("Transform selected text", $store.config.transformHotkey, Self.transformHotkeys)
+                choicePicker("Language", $store.config.transcription.language, Self.languages)
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in LoginItem.set(on); launchAtLogin = LoginItem.isEnabled }
             }
-            Section("Hotkeys") {
-                hotkeyPicker("Dictate (hold, or double-tap for hands-free)", $store.config.hotkey, Self.mainHotkeys)
-                hotkeyPicker("Transform selected text (tap)", $store.config.transformHotkey, Self.transformHotkeys)
-                Text("Any name from the README works in config.json, e.g. \"cmd+shift+d\" or \"left_option\".")
-                    .font(.caption).foregroundStyle(.secondary)
-                HStack {
-                    Text("Hands-free auto-stop")
-                    Spacer()
-                    Stepper("\(Int(store.config.handsFree.maxSeconds / 60)) min",
-                            value: $store.config.handsFree.maxSeconds, in: 60...1800, step: 60)
-                }
-                Toggle("Show pipes next to the pill while dictating", isOn: $store.config.showPipesInPill)
+            Section("API keys") {
+                APIKeyField(title: "Groq", envKey: "GROQ_API_KEY", url: APIKeyField.groqURL)
+                APIKeyField(title: "Anthropic", envKey: "ANTHROPIC_API_KEY", url: APIKeyField.anthropicURL)
             }
-            Section("Transcription") {
-                Picker("Backend", selection: $store.config.transcription.backend) {
-                    Text("Auto (Groq, then OpenAI, then local)").tag("auto")
-                    Text("Local whisper.cpp").tag("local")
-                    Text("Groq").tag("groq")
-                    Text("OpenAI").tag("openai")
+            Section("Cleanup") {
+                let hasKey = AnthropicClient.apiKey != nil
+                Toggle("Clean up dictation with Claude", isOn: $store.config.llm.enabled)
+                    .disabled(!hasKey)
+                choicePicker("Model", $store.config.llm.model, Self.models)
+                    .disabled(!hasKey || !store.config.llm.enabled)
+                if !hasKey {
+                    Text("Add an Anthropic key to turn on cleanup and pipes.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                Picker("Local model", selection: $store.config.transcription.localModel) {
-                    ForEach(["small", "small.en", "medium", "medium.en"], id: \.self) { Text($0).tag($0) }
-                    if !["small", "small.en", "medium", "medium.en"].contains(store.config.transcription.localModel) {
-                        Text(store.config.transcription.localModel).tag(store.config.transcription.localModel)
-                    }
-                }
-                TextField("Language (\"auto\", \"en\", \"he\", ...)", text: $store.config.transcription.language)
-                TextField("Vocabulary hint (names, jargon)", text: $store.config.transcription.vocabulary)
-                Toggle("Fall back to local if the cloud request fails", isOn: $store.config.transcription.fallbackToLocal)
-                statusRow("Active backend", (try? TranscriptionService.plan(store.config.transcription).label) ?? "misconfigured")
-                statusRow("whisper-cli", LocalWhisper.findBinary("whisper-cli", override: store.config.transcription.whisperCliPath) ?? "not found (brew install whisper-cpp)")
-                statusRow("Model file", LocalWhisper().modelURL(store.config.transcription)?.lastPathComponent ?? "missing (scripts/download-model.sh \(store.config.transcription.localModel))")
-            }
-            Section("Cleanup (Claude)") {
-                Toggle("Run dictation through the default pipe", isOn: $store.config.llm.enabled)
-                TextField("Model", text: $store.config.llm.model)
-                Picker("Effort", selection: $store.config.llm.effort) {
-                    Text("low").tag("low"); Text("medium").tag("medium"); Text("high").tag("high")
-                }
-                Toggle("Restore my previous clipboard after pasting", isOn: $store.config.clipboard.restorePrevious)
-                statusRow("Keys in .env", keySummary)
-            }
-            Section("Permissions") {
-                permissionRow("Accessibility (hotkeys, paste)", permissions.accessibility, "Privacy_Accessibility")
-                permissionRow("Input Monitoring (hotkeys)", permissions.input, "Privacy_ListenEvent")
-                permissionRow("Microphone", permissions.mic, "Privacy_Microphone")
             }
             Section {
+                if updater.isAvailable {
+                    Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
+                }
                 HStack {
-                    Button("Open config folder") { NSWorkspace.shared.open(Paths.configDir) }
-                    Button("Reload config") { store.load() }
+                    Text("Talky \(AppInfo.version)").foregroundStyle(.secondary)
+                    Spacer()
+                    if updater.isAvailable { Button("Check for Updates…") { updater.checkNow() } }
+                    Button("Uninstall Talky…") { Uninstaller.confirmAndRun() }
                 }
             }
         }
         .formStyle(.grouped)
         .onReceive(refresh) { _ in permissions = PermissionState() }
-    }
-
-    var keySummary: String {
-        let keys = [("Anthropic", "ANTHROPIC_API_KEY"), ("Groq", "GROQ_API_KEY"), ("OpenAI", "OPENAI_API_KEY")]
-        let found = keys.filter { Env.value($0.1) != nil }.map(\.0)
-        return found.isEmpty ? "none (offline mode)" : found.joined(separator: ", ")
     }
 
     func hotkeyPicker(_ title: String, _ binding: Binding<String>, _ options: [String]) -> some View {
@@ -151,21 +133,70 @@ struct GeneralTab: View {
         }
     }
 
-    func statusRow(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Text(value).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+    /// A picker over fixed choices that still shows a hand-edited value from config.json.
+    func choicePicker(_ title: String, _ binding: Binding<String>, _ options: [(String, String)]) -> some View {
+        Picker(title, selection: binding) {
+            ForEach(options, id: \.0) { Text($0.1).tag($0.0) }
+            if !options.contains(where: { $0.0 == binding.wrappedValue }) {
+                Text(binding.wrappedValue).tag(binding.wrappedValue)
+            }
         }
     }
+}
 
-    func permissionRow(_ title: String, _ granted: Bool, _ pane: String) -> some View {
+/// A secure field bound to one key in ~/.config/talky/.env. Saves when the field loses focus or on Return.
+struct APIKeyField: View {
+    static let groqURL = URL(string: "https://console.groq.com/keys")!
+    static let anthropicURL = URL(string: "https://console.anthropic.com/settings/keys")!
+
+    let title: String
+    let envKey: String
+    let url: URL
+    var prompt = "Paste key"
+    @State private var value = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
         HStack {
-            Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(granted ? .green : .red)
+            SecureField(title, text: $value, prompt: Text(prompt))
+                .focused($focused)
+                .onSubmit(save)
+                .onChange(of: focused) { _, isFocused in if !isFocused { save() } }
+            Link("Get a key", destination: url).font(.caption)
+        }
+        .onAppear { value = Env.value(envKey) ?? "" }
+        .onDisappear(perform: save)
+    }
+
+    func save() {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != (Env.value(envKey) ?? "") else { return }
+        Env.set(envKey, trimmed)
+        NotificationCenter.default.post(name: .talkyKeysChanged, object: nil)
+    }
+}
+
+extension Notification.Name {
+    static let talkyKeysChanged = Notification.Name("TalkyKeysChanged")
+}
+
+/// Permission status with a button for each missing one. Shared by Settings and onboarding.
+struct PermissionRows: View {
+    let state: PermissionState
+
+    var body: some View {
+        row("Microphone", state.mic) { Task { _ = await AudioRecorder.requestPermission(); Permissions.openSettings("Privacy_Microphone") } }
+        row("Accessibility", state.accessibility) { Permissions.promptAccessibility(); Permissions.openSettings("Privacy_Accessibility") }
+        row("Input Monitoring", state.input) { Permissions.promptInputMonitoring(); Permissions.openSettings("Privacy_ListenEvent") }
+    }
+
+    func row(_ title: String, _ granted: Bool, _ grant: @escaping () -> Void) -> some View {
+        HStack {
+            Image(systemName: granted ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(granted ? .green : .secondary)
             Text(title)
             Spacer()
-            if !granted { Button("Open System Settings") { Permissions.openSettings(pane) } }
+            if !granted { Button("Allow", action: grant) }
         }
     }
 }
@@ -174,6 +205,7 @@ struct PermissionState {
     var accessibility = Permissions.accessibility
     var input = Permissions.inputMonitoring
     var mic = Permissions.microphone
+    var allGranted: Bool { accessibility && input && mic }
 }
 
 public enum LoginItem {
@@ -188,182 +220,90 @@ public enum LoginItem {
     }
 }
 
-// MARK: Pipes
+// MARK: Pipes (edit and test in one place)
 
-struct PipesTab: View {
-    @ObservedObject var store: PipeStore
-    @State private var selection: String?
-
-    var body: some View {
-        HSplitView {
-            VStack(spacing: 0) {
-                List(selection: $selection) {
-                    ForEach(Array(store.pipes.enumerated()), id: \.element.id) { i, pipe in
-                        HStack {
-                            Text(i < 9 ? "\(i + 1)" : " ").monospacedDigit().foregroundStyle(.secondary).frame(width: 14)
-                            Text(pipe.name)
-                            Spacer()
-                            if store.defaultPipeId == pipe.id {
-                                Text("default").font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                        .tag(pipe.id)
-                    }
-                }
-                HStack(spacing: 4) {
-                    Button { selection = store.add().id } label: { Image(systemName: "plus") }
-                    Button {
-                        if let s = selection { store.delete(id: s); selection = store.pipes.first?.id }
-                    } label: { Image(systemName: "minus") }.disabled(selection == nil)
-                    Spacer()
-                    Button { if let s = selection { store.move(id: s, by: -1) } } label: { Image(systemName: "arrow.up") }
-                    Button { if let s = selection { store.move(id: s, by: 1) } } label: { Image(systemName: "arrow.down") }
-                }
-                .buttonStyle(.borderless)
-                .padding(6)
-            }
-            .frame(minWidth: 200, maxWidth: 260)
-
-            Group {
-                if let id = selection, let index = store.pipes.firstIndex(where: { $0.id == id }) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        TextField("Name", text: $store.pipes[index].name).textFieldStyle(.roundedBorder)
-                        Text("Prompt").font(.headline)
-                        TextEditor(text: $store.pipes[index].prompt)
-                            .font(.system(.body, design: .monospaced))
-                            .border(Color.secondary.opacity(0.3))
-                        HStack {
-                            Button(store.defaultPipeId == id ? "Default for dictation" : "Make default for dictation") {
-                                store.defaultPipeId = id
-                            }
-                            .disabled(store.defaultPipeId == id)
-                            Button("Use raw transcript by default") { store.defaultPipeId = nil }
-                                .disabled(store.defaultPipeId == nil)
-                            Spacer()
-                        }
-                        Text("Order sets the number key: the first pipe is 1 in the pill and the transform picker. 0 is always the raw transcript.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    .padding()
-                } else {
-                    Text("Select a pipe or add one with +").foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onAppear { if selection == nil { selection = store.pipes.first?.id } }
-    }
-}
-
-// MARK: Test
-
-struct TestResult: Identifiable {
-    let id: String
-    var name: String
-    var output: String = ""
+struct TestResult {
+    /// The prompt this output came from, so edits after a run can be flagged.
+    var prompt: String
+    var output = ""
     var error: String?
     var seconds: Double?
     var running = true
 }
 
-struct TestTab: View {
-    @ObservedObject var pipes: PipeStore
+struct PipesTab: View {
+    @ObservedObject var store: PipeStore
     @ObservedObject var config: ConfigStore
     @State private var input = "um so i was thinking we could uh maybe move the standup to like ten thirty tomorrow if that works for everyone, no wait, eleven"
-    @State private var chosen: Set<String> = []
-    @State private var results: [TestResult] = []
+    @State private var results: [String: TestResult] = [:]
     @State private var task: Task<Void, Never>?
 
     var body: some View {
-        HSplitView {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Input").font(.headline)
-                TextEditor(text: $input)
-                    .font(.body)
-                    .border(Color.secondary.opacity(0.3))
-                    .frame(minHeight: 120)
-                Text("Pipes to compare").font(.headline)
-                List {
-                    ForEach(pipes.pipes) { pipe in
-                        Toggle(pipe.name, isOn: Binding(
-                            get: { chosen.contains(pipe.id) },
-                            set: { on in if on { chosen.insert(pipe.id) } else { chosen.remove(pipe.id) } }))
+        VStack(alignment: .leading, spacing: 12) {
+            testInput
+            Divider()
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(Array(store.pipes.enumerated()), id: \.element.id) { index, pipe in
+                            PipeRow(store: store, index: index, pipeId: pipe.id, result: results[pipe.id])
+                                .id(pipe.id)
+                        }
                     }
+                    .padding(.vertical, 4)
                 }
-                .frame(minHeight: 120)
-                HStack {
-                    Button("All") { chosen = Set(pipes.pipes.map(\.id)) }
-                    Button("None") { chosen = [] }
-                    Spacer()
-                    if task != nil {
-                        Button("Stop") { task?.cancel(); task = nil }
-                    }
-                    Button("Run") { run() }
-                        .keyboardShortcut(.return, modifiers: .command)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(chosen.isEmpty || input.isEmpty)
-                }
-                if AnthropicClient.apiKey == nil {
-                    Text("Add ANTHROPIC_API_KEY to ~/.config/talky/.env to run pipes.")
-                        .font(.caption).foregroundStyle(.red)
+                .onChange(of: store.pipes.count) { old, new in
+                    if new > old, let last = store.pipes.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
             }
-            .padding()
-            .frame(minWidth: 280, maxWidth: 360)
-
-            ScrollView {
-                if results.isEmpty {
-                    Text("Pick one or more pipes and press Run (⌘↩) to see how each one transforms the input.")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 300)
-                }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 12, alignment: .top)], spacing: 12) {
-                    ForEach(results) { r in resultCard(r) }
-                }
-                .padding()
+            HStack {
+                Button { store.add() } label: { Label("New pipe", systemImage: "plus") }
+                Button("Use raw transcript by default") { store.defaultPipeId = nil }
+                    .disabled(store.defaultPipeId == nil)
+                Spacer()
+                Text("Order sets the number key in the pill and the transform picker. 0 is always the raw transcript.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            .frame(minWidth: 380, maxWidth: .infinity)
         }
-        .onAppear { if chosen.isEmpty, let d = pipes.defaultPipeId { chosen = [d] } }
     }
 
-    func resultCard(_ r: TestResult) -> some View {
+    var hasKey: Bool { AnthropicClient.apiKey != nil }
+
+    var testInput: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(r.name).font(.headline)
+                Text("Test text").font(.headline)
                 Spacer()
-                if r.running { ProgressView().controlSize(.small) }
-                if let s = r.seconds { Text(String(format: "%.1fs", s)).font(.caption).foregroundStyle(.secondary) }
-            }
-            if let e = r.error {
-                Text(e).foregroundStyle(.red).textSelection(.enabled)
-            } else {
-                Text(r.output).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if !r.running, r.error == nil {
-                Button("Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(r.output, forType: .string)
+                if !hasKey {
+                    Text("Pipes need an Anthropic API key. Add one in General.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                .buttonStyle(.link).font(.caption)
+                if task != nil {
+                    Button("Stop") { task?.cancel(); task = nil }
+                }
+                Button { runAll() } label: { Label("Run all pipes", systemImage: "play.fill") }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!hasKey || store.pipes.isEmpty || input.isEmpty)
+                    .help("Runs the text through every pipe (⌘↩)")
             }
+            TextEditor(text: $input)
+                .font(.body)
+                .frame(height: 70)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2)))
     }
 
-    func run() {
+    func runAll() {
         task?.cancel()
-        let selected = pipes.pipes.filter { chosen.contains($0.id) }
+        let pipes = store.pipes
         let text = input
         let llmConfig = config.config.llm
-        results = selected.map { TestResult(id: $0.id, name: $0.name) }
+        results = Dictionary(uniqueKeysWithValues: pipes.map { ($0.id, TestResult(prompt: $0.prompt)) })
         let client = AnthropicClient()
         task = Task {
             await withTaskGroup(of: (String, Result<String, Error>, Double).self) { group in
-                for pipe in selected {
+                for pipe in pipes {
                     group.addTask {
                         let start = Date()
                         do {
@@ -375,16 +315,113 @@ struct TestTab: View {
                     }
                 }
                 for await (id, result, secs) in group {
-                    guard let i = results.firstIndex(where: { $0.id == id }) else { continue }
-                    results[i].running = false
-                    results[i].seconds = secs
+                    guard results[id] != nil else { continue }
+                    results[id]?.running = false
+                    results[id]?.seconds = secs
                     switch result {
-                    case .success(let out): results[i].output = out
-                    case .failure(let e): results[i].error = e.localizedDescription
+                    case .success(let out): results[id]?.output = out
+                    case .failure(let e): results[id]?.error = e.localizedDescription
                     }
                 }
             }
             task = nil
+        }
+    }
+}
+
+/// One pipe: editable name and prompt on the left, its output for the test text on the right.
+struct PipeRow: View {
+    @ObservedObject var store: PipeStore
+    let index: Int
+    let pipeId: String
+    let result: TestResult?
+
+    var body: some View {
+        if store.pipes.indices.contains(index), store.pipes[index].id == pipeId {
+            HStack(alignment: .top, spacing: 16) {
+                editor.frame(maxWidth: .infinity)
+                output.frame(maxWidth: .infinity)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.2)))
+        }
+    }
+
+    var pipe: Binding<TextPipe> { $store.pipes[index] }
+    var isDefault: Bool { store.defaultPipeId == pipeId }
+
+    var editor: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(index < 9 ? "\(index + 1)" : "–")
+                    .font(.system(size: 12, weight: .bold).monospacedDigit())
+                    .frame(width: 22, height: 22)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.secondary.opacity(0.15)))
+                TextField("Name", text: pipe.name)
+                    .textFieldStyle(.plain)
+                    .font(.title3.weight(.semibold))
+                Spacer()
+                if isDefault {
+                    Text("Default").font(.caption.weight(.medium))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill(Color.accentColor.opacity(0.2)))
+                } else {
+                    Button("Make default") { store.defaultPipeId = pipeId }
+                        .buttonStyle(.link).font(.caption)
+                }
+                Group {
+                    Button { store.move(id: pipeId, by: -1) } label: { Image(systemName: "arrow.up") }
+                        .disabled(index == 0).help("Move up")
+                    Button { store.move(id: pipeId, by: 1) } label: { Image(systemName: "arrow.down") }
+                        .disabled(index == store.pipes.count - 1).help("Move down")
+                    Button { store.delete(id: pipeId) } label: { Image(systemName: "trash") }
+                        .help("Delete pipe")
+                }
+                .buttonStyle(.borderless)
+            }
+            TextEditor(text: pipe.prompt)
+                .font(.system(.body, design: .monospaced))
+                .frame(minHeight: 130)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+        }
+    }
+
+    var output: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Output").font(.headline).foregroundStyle(.secondary)
+                Spacer()
+                if let r = result {
+                    if r.running { ProgressView().controlSize(.small) }
+                    if !r.running, r.prompt != store.pipes[index].prompt {
+                        Text("prompt edited, run again").font(.caption).foregroundStyle(.orange)
+                    }
+                    if let s = r.seconds { Text(String(format: "%.1fs", s)).font(.caption).foregroundStyle(.secondary) }
+                    if !r.running, r.error == nil {
+                        Button("Copy") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(r.output, forType: .string)
+                        }
+                        .buttonStyle(.link).font(.caption)
+                    }
+                }
+            }
+            Group {
+                if let r = result, let e = r.error {
+                    Text(e).foregroundStyle(.red)
+                } else if let r = result, !r.running {
+                    Text(r.output)
+                } else if result == nil {
+                    Text("Press Run all pipes (⌘↩) to see this pipe's output.").foregroundStyle(.secondary)
+                } else {
+                    Text(" ")
+                }
+            }
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
+            .padding(8)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
         }
     }
 }

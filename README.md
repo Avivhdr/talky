@@ -19,6 +19,17 @@ The pill at the bottom of the screen shows that the mic is live, which mode you'
 
 ## Install
 
+Download `Talky-latest.dmg` from the website, open it and drag Talky into Applications. Talky checks for updates every six hours and installs them through Sparkle. You can also check from the menu bar.
+
+On first launch a short setup window asks for the three permissions and for your API keys:
+
+- **Groq** turns speech into text. The free tier is enough for dictation.
+- **Anthropic** runs cleanup and pipes. Skip it and Talky pastes the raw transcript. The pill shows no pipes and the transform hotkey asks for a key.
+
+Both keys can be added or changed later in Settings. Talky saves them to `~/.config/talky/.env`.
+
+### Build from source
+
 Requirements: macOS 14 or later, Xcode command line tools (`xcode-select --install`).
 
 ```bash
@@ -26,20 +37,21 @@ Requirements: macOS 14 or later, Xcode command line tools (`xcode-select --insta
 brew install whisper-cpp
 scripts/download-model.sh small        # or small.en, medium, medium.en
 
-# API keys, all optional
-cp .env.example .env                   # then fill in what you have
-
 # Build, copy to /Applications, link .env into ~/.config/talky, launch
 scripts/install.sh
 ```
 
-`install.sh` symlinks the repo's `.env` to `~/.config/talky/.env` if that file doesn't exist yet. That's where Talky reads keys from. Edits to it apply on the next dictation, no restart needed.
+`install.sh` symlinks the repo's `.env` to `~/.config/talky/.env` if that file doesn't exist yet. To just build without installing: `scripts/build-app.sh` produces `build/Talky.app`. Source builds have no auto-updates unless you set `TALKY_FEED_URL`.
 
-To just build without installing: `scripts/build-app.sh` produces `build/Talky.app`.
+### Uninstall
+
+Settings, then Uninstall Talky. It turns off launch at login, resets Talky's entries in the Privacy & Security lists, deletes its logs and caches, moves the app to the Trash and quits. A checkbox, on by default, also deletes `~/.config/talky` with your settings, pipes and keys.
+
+If the app won't open, `scripts/uninstall.sh` does the same from the terminal (`--keep-settings` keeps `~/.config/talky`).
 
 ## Permissions
 
-macOS will ask for these on first launch. If you miss a prompt, open System Settings, then Privacy & Security, and turn Talky on in each list. Settings, then General in Talky shows a green or red dot for each one with a button that jumps to the right pane.
+The setup window asks for these one at a time. If you skip one, Settings lists whatever is still missing, with an Allow button that jumps to the right pane in System Settings.
 
 | Permission | Where | Why |
 | --- | --- | --- |
@@ -131,7 +143,7 @@ Locally, Talky starts `whisper-server` in the background so the model stays in m
 
 ### LLM model
 
-Pipes run on `claude-opus-5-5` at low effort. Every dictation waits on this call, so if the delay bothers you, set `"model": "claude-haiku-4-5"`. It's faster and cheaper, and cleanup doesn't need much. Without `ANTHROPIC_API_KEY`, Talky pastes the raw transcript and says so on the pill.
+Pipes run on `claude-haiku-4-5-20251001`, chosen in Settings, then Cleanup. Every dictation waits on this call: Haiku takes about 0.7 s for a sentence, Opus 5.5 about 3 s. Sonnet and Opus give better rewrites for the Formal and Bullets pipes, but cleanup doesn't need them.
 
 ## Pipes
 
@@ -141,9 +153,7 @@ A pipe is a named prompt that transforms text. Talky ships with three:
 - **Formal.** Work-email prose.
 - **Bullets.** A markdown bullet list.
 
-Manage them in Settings, then Pipes: add, delete, rename, edit the prompt, reorder (order sets the number key), and choose the default. "Use raw transcript by default" turns cleanup off unless you pick a pipe in the pill.
-
-Settings, then Test lets you try pipes before using them. Type or paste text, tick one or more pipes, press Run (⌘↩) and the outputs appear side by side with their latency. That's the quickest way to compare two versions of a prompt: duplicate the pipe, change one line, run both.
+Settings, then Pipes is the one place to edit and test them. Each pipe is a card: its name and prompt on the left, and on the right its output for the test text at the top of the screen. Press Run all pipes (⌘↩) and every pipe runs at once, with its latency shown on the card. Change a prompt and the card flags the old output as stale until you run again. The same screen adds, deletes, reorders (order sets the number key) and picks the default. "Use raw transcript by default" turns cleanup off unless you pick a pipe in the pill.
 
 Every pipe runs inside a fixed wrapper prompt that tells Claude to return only the transformed text and to treat the input as material, not as instructions. Dictating "can you write me a poem" pastes that sentence, cleaned up, instead of a poem.
 
@@ -177,6 +187,15 @@ Sources/TalkyCore/
   LLM.swift            Claude Messages API
   TextIO.swift         paste, clipboard snapshot/restore, selected text, permissions
   Pill.swift           floating pill, pipe chips, transform picker
-  Settings.swift       settings window: General, Pipes, Test
+  Settings.swift       settings window: General, and Pipes (edit and test together)
+  Onboarding.swift     first-run window: permissions, API keys
+  Distribution.swift   Sparkle updater, uninstall
   AppDelegate.swift    menu bar, wiring, config file watcher
 ```
+
+## Releasing
+
+`scripts/release.sh` publishes a version. Bump `CFBundleShortVersionString` in `Resources/Info.plist`, commit, and run it from `main`. It bumps the build number, builds a universal app signed with your Developer ID, notarizes it, and writes three files into `web/`: the Sparkle update zip, `appcast.xml` and `Talky-latest.dmg`. Then it commits, pushes, waits until the site serves the new appcast and creates a GitHub release.
+
+`web/` is the website. Point a static host (Vercel, Netlify, GitHub Pages) at it on your domain and set `TALKY_SITE` in `release.sh` to that domain. The setup steps (certificate, notary profile, Sparkle key) are at the top of the script. Pick the domain and the Sparkle key once. Every installed copy reads its feed URL and public key from its own Info.plist, so if either one changes those copies stop updating.
+

@@ -102,9 +102,16 @@ public final class Controller: KeyMonitorDelegate {
         }
     }
 
+    /// Pipes need Claude. Without an Anthropic key Talky pastes the raw transcript and hides them.
+    private var pipesAvailable: Bool { config.llm.enabled && AnthropicClient.apiKey != nil }
+
     public func transformHotkeyFired() {
         switch phase {
         case .idle:
+            guard AnthropicClient.apiKey != nil else {
+                pill.flash("Add an Anthropic API key in Settings to transform text", seconds: 2.5)
+                return
+            }
             phase = .processing
             Task {
                 let text = await TextIO.selectedText()
@@ -145,7 +152,7 @@ public final class Controller: KeyMonitorDelegate {
 
     public func digitPressed(_ n: Int) -> Bool {
         switch phase {
-        case .recording where purpose == .dictate && config.showPipesInPill:
+        case .recording where purpose == .dictate && config.showPipesInPill && pipesAvailable:
             if n == 0 { selectSessionPipe(nil); return true }
             guard n <= min(9, pipeStore.pipes.count) else { return false }
             selectSessionPipe(pipeStore.pipes[n - 1].id)
@@ -172,7 +179,7 @@ public final class Controller: KeyMonitorDelegate {
 
     private func startRecording(mode: RecordingMode) {
         self.mode = mode
-        if purpose == .dictate { sessionPipeId = config.llm.enabled ? pipeStore.defaultPipeId : nil }
+        if purpose == .dictate { sessionPipeId = pipesAvailable ? pipeStore.defaultPipeId : nil }
         do {
             try recorder.start()
         } catch {
@@ -191,7 +198,7 @@ public final class Controller: KeyMonitorDelegate {
         m.remaining = nil
         m.pipes = pipeStore.pipes
         m.selectedPipeId = sessionPipeId
-        m.showPipes = config.showPipesInPill && config.llm.enabled
+        m.showPipes = config.showPipesInPill && pipesAvailable
         pill.show(.recording)
 
         tick?.invalidate()
