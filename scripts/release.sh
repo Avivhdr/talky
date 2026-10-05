@@ -3,8 +3,8 @@
 #
 # Bump CFBundleShortVersionString in Resources/Info.plist first. This script bumps CFBundleVersion
 # (the number Sparkle compares), builds a universal Developer ID app, notarizes it, writes the
-# update zip, appcast and DMG into web/, commits, pushes (the host deploys web/) and creates a
-# GitHub release.
+# update zip, appcast and DMG into web/, commits, pushes (Vercel project "usetalky"
+# deploys web/) and creates a GitHub release.
 #
 # One-time setup on the release Mac:
 #   - A "Developer ID Application" certificate in the login Keychain (Xcode › Settings › Accounts).
@@ -13,12 +13,14 @@
 #   - The Sparkle EdDSA key. The first run creates it in the Keychain. Back it up with
 #     .build/artifacts/sparkle/Sparkle/bin/generate_keys --account dev.talky.Talky -x key.txt
 #     and never change it: installed copies only accept updates signed with it.
-#   - Set TALKY_SITE below to the domain that serves web/. Like the key, never change it after
-#     the first public release, because installed copies read the feed from it.
+#   - Connect GitHub repo Avivhdr/talky to the Vercel project usetalky, with root directory web/
+#     and production branch main. The push below is what publishes the site.
+#   - TALKY_SITE is https://usetalky.vercel.app. Keep it. Installed copies read the feed from
+#     it, and a later change leaves those copies unable to update.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-TALKY_SITE="${TALKY_SITE:-https://talky.example.com}"
+TALKY_SITE="${TALKY_SITE:-https://usetalky.vercel.app}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-talky-notary}"
 SPARKLE_BIN=.build/artifacts/sparkle/Sparkle/bin
 INFO=Resources/Info.plist
