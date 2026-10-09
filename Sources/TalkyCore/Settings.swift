@@ -93,20 +93,15 @@ struct GeneralTab: View {
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in LoginItem.set(on); launchAtLogin = LoginItem.isEnabled }
             }
-            Section("API keys") {
-                APIKeyField(title: "Groq", envKey: "GROQ_API_KEY", url: APIKeyField.groqURL)
-                APIKeyField(title: "Anthropic", envKey: "ANTHROPIC_API_KEY", url: APIKeyField.anthropicURL)
-            }
             Section("Cleanup") {
+                APIKeyField(title: "Anthropic", envKey: "ANTHROPIC_API_KEY", url: APIKeyField.anthropicURL, verifies: .anthropic)
+                Text("Talky hears you on this Mac with no key. An Anthropic key adds cleanup and pipes. With no key, Talky pastes exactly what you said.")
+                    .font(.caption).foregroundStyle(.secondary)
                 let hasKey = AnthropicClient.apiKey != nil
                 Toggle("Clean up dictation with Claude", isOn: $store.config.llm.enabled)
                     .disabled(!hasKey)
                 choicePicker("Model", $store.config.llm.model, Self.models)
                     .disabled(!hasKey || !store.config.llm.enabled)
-                if !hasKey {
-                    Text("Add an Anthropic key to turn on cleanup and pipes.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
             }
             Section {
                 if updater.isAvailable {
@@ -145,6 +140,7 @@ struct GeneralTab: View {
 }
 
 /// A secure field bound to one key in ~/.config/talky/.env. Saves when the field loses focus or on Return.
+/// When `verifies` is set, the row checks the key and says whether the service accepted it.
 struct APIKeyField: View {
     static let groqURL = URL(string: "https://console.groq.com/keys")!
     static let anthropicURL = URL(string: "https://console.anthropic.com/settings/keys")!
@@ -153,26 +149,76 @@ struct APIKeyField: View {
     let envKey: String
     let url: URL
     var prompt = "Paste key"
+    var verifies: KeyCheck.Service?
+    var onState: (KeyState) -> Void = { _ in }
     @State private var value = ""
+    @State private var state = KeyState.empty
+    @State private var checkID = 0
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack {
-            SecureField(title, text: $value, prompt: Text(prompt))
-                .focused($focused)
-                .onSubmit(save)
-                .onChange(of: focused) { _, isFocused in if !isFocused { save() } }
-            Link("Get a key", destination: url).font(.caption)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                SecureField(title, text: $value, prompt: Text(prompt))
+                    .focused($focused)
+                    .onSubmit(commit)
+                    .onChange(of: focused) { _, isFocused in if !isFocused { commit() } }
+                if verifies != nil {
+                    Button("Check") { commit() }
+                        .disabled(state == .checking || value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                Link("Get a key", destination: url).font(.caption)
+            }
+            if let line = statusLine {
+                Text(line.text).font(.caption).foregroundStyle(line.color)
+            }
         }
-        .onAppear { value = Env.value(envKey) ?? "" }
-        .onDisappear(perform: save)
+        .onAppear {
+            value = Env.value(envKey) ?? ""
+            if value.isEmpty { report(.empty) } else { check() }
+        }
+        .onDisappear(perform: persist)
     }
 
-    func save() {
+    var statusLine: (text: String, color: Color)? {
+        switch state {
+        case .empty: return nil
+        case .checking: return ("Checking the key…", .secondary)
+        case .valid: return ("Key works", .green)
+        case .invalid(let message): return (message, .red)
+        }
+    }
+
+    func commit() {
+        persist()
+        check()
+    }
+
+    func persist() {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed != (Env.value(envKey) ?? "") else { return }
         Env.set(envKey, trimmed)
         NotificationCenter.default.post(name: .talkyKeysChanged, object: nil)
+        if trimmed.isEmpty { report(.empty) }
+    }
+
+    func check() {
+        guard let verifies else { return }
+        let key = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { report(.empty); return }
+        checkID += 1
+        let id = checkID
+        report(.checking)
+        Task {
+            let verdict = await KeyCheck.verify(verifies, key: key)
+            guard id == checkID else { return }
+            report(verdict.ok ? .valid : .invalid(verdict.message))
+        }
+    }
+
+    func report(_ newState: KeyState) {
+        state = newState
+        onState(newState)
     }
 }
 

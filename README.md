@@ -1,8 +1,8 @@
 # Talky
 
-Talky is a menu bar dictation app for macOS. Hold a key, talk, let go, and the text appears wherever your cursor is. Speech goes through Whisper, then (optionally) through Claude to strip the "um"s and fix punctuation.
+Talky is a menu bar dictation app for macOS. Hold a key, talk, let go, and the text appears wherever your cursor is. Talky hears you on the Mac. With an Anthropic key, Claude then strips the "um"s and runs pipes.
 
-No accounts and no telemetry. With the local whisper.cpp model and no API keys it runs fully offline and pastes the raw transcript.
+No accounts and no telemetry. With no API key, Talky pastes the raw transcript and nothing leaves the Mac.
 
 ## What it does
 
@@ -21,20 +21,22 @@ The pill at the bottom of the screen shows that the mic is live, which mode you'
 
 Download `Talky-latest.dmg` from the website, open it and drag Talky into Applications. Talky checks for updates every six hours and installs them through Sparkle. You can also check from the menu bar.
 
-On first launch a short setup window asks for the three permissions and for your API keys:
+On first launch a setup window walks through the steps and does not finish until dictation works:
 
-- **Groq** turns speech into text. The free tier is enough for dictation.
-- **Anthropic** runs cleanup and pipes. Skip it and Talky pastes the raw transcript. The pill shows no pipes and the transform hotkey asks for a key.
+- The three permissions each get a check when macOS grants them.
+- Talky downloads a speech model once, about 500 MB. The speech engine is inside the app.
+- An Anthropic key is optional. Talky checks it when you paste one. Skip it and Talky pastes the raw transcript. With a key, cleanup and pipes turn on.
+- The last step records a sentence and shows the text. Finish stays off until that text comes back.
 
-Both keys can be added or changed later in Settings. Talky saves them to `~/.config/talky/.env`.
+The key can be changed later in Settings. The row says whether Anthropic accepted it. Talky saves it to `~/.config/talky/.env`.
 
 ### Build from source
 
 Requirements: macOS 14 or later, Xcode command line tools (`xcode-select --install`).
 
 ```bash
-# Local transcription (skip if you only want Groq/OpenAI)
-brew install whisper-cpp
+# The speech engine is built into the app by scripts/build-app.sh.
+# The speech model downloads on first launch. To fetch one ahead of time:
 scripts/download-model.sh small        # or small.en, medium, medium.en
 
 # Build, copy to /Applications, link .env into ~/.config/talky, launch
@@ -98,15 +100,12 @@ Talky watches the folder, so saving `config.json` in an editor applies immediate
   "transformHotkey": "right_option",  // tap with text selected
   "showPipesInPill": true,
   "transcription": {
-    "backend": "auto",                // auto | local | groq | openai
+    "backend": "local",               // this version always transcribes on the Mac
     "localModel": "small",            // small | small.en | medium | medium.en | /abs/path/model.bin
     "language": "auto",               // or "en", "he", "de", ...
     "useWhisperServer": true,         // keep the model loaded in a background whisper-server
-    "fallbackToLocal": true,          // cloud request failed? retry locally
     "vocabulary": "",                 // names and jargon to bias spelling, e.g. "Collibra, Kubernetes"
-    "groqModel": "whisper-large-v3-turbo",
-    "openaiModel": "whisper-1",
-    "whisperCliPath": null,           // only if whisper.cpp isn't in /opt/homebrew/bin or PATH
+    "whisperCliPath": null,           // set only to replace the engine shipped inside the app
     "whisperServerPath": null
   },
   "llm": {
@@ -135,11 +134,13 @@ A hotkey is either a single modifier or a chord.
 
 The transform hotkey fires on a clean tap only. Holding right `⌥` to type `ø` or `™` won't open the picker.
 
-### Transcription backends
+### Transcription
 
-`auto` picks Groq if `GROQ_API_KEY` is set, then OpenAI if `OPENAI_API_KEY` is set, and otherwise the local model. With `fallbackToLocal`, a failed cloud call (offline, rate limited) retries with whisper.cpp, as long as a model file is downloaded.
+Talky transcribes on the Mac. The speech engine ships inside the app. The speech model downloads on first launch into `~/.config/talky/models`.
 
-Locally, Talky starts `whisper-server` in the background so the model stays in memory, and falls back to one-shot `whisper-cli` if the server won't start. `small` is the default. It's fast on Apple Silicon and good enough for most dictation. `medium` is more accurate and roughly 2-3x slower. If you only speak English, the `.en` variants are a bit more accurate at the same size. Server logs go to `~/Library/Logs/Talky/whisper-server.log`.
+Talky starts `whisper-server` in the background so the model stays in memory, and falls back to one-shot `whisper-cli` if the server won't start. `small` is the default. It's fast on Apple Silicon and good enough for most dictation. `medium` is more accurate and roughly 2-3x slower. If you only speak English, the `.en` variants are a bit more accurate at the same size. Server logs go to `~/Library/Logs/Talky/whisper-server.log`.
+
+An Anthropic key is the only key. It runs cleanup and pipes. With no key, Talky pastes the raw transcript.
 
 ### LLM model
 
@@ -183,7 +184,7 @@ Sources/TalkyCore/
   Controller.swift     state machine: hold, double-tap, hands-free, Esc, picker
   Hotkeys.swift        hotkey parsing and the CGEventTap
   Audio.swift          mic capture at 16 kHz mono, WAV writer
-  Transcription.swift  whisper-server / whisper-cli, Groq, OpenAI
+  Transcription.swift  whisper-server / whisper-cli on this Mac
   LLM.swift            Claude Messages API
   TextIO.swift         paste, clipboard snapshot/restore, selected text, permissions
   Pill.swift           floating pill, pipe chips, transform picker

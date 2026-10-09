@@ -35,14 +35,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
             }
         }
 
-        // Onboarding asks for permissions one at a time, so skip the launch-time prompts.
+        // The hotkey stays off until setup has recorded a real sentence. Otherwise a
+        // first dictation fails in the menu bar before the user can see why.
         if OnboardingWindowController.isDone {
             Task {
                 _ = await AudioRecorder.requestPermission()
                 startKeyMonitor()
             }
         } else {
-            startKeyMonitor(prompt: false)
             onboarding.show()
         }
     }

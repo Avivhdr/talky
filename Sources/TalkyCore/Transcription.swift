@@ -19,22 +19,10 @@ public final class TranscriptionService: @unchecked Sendable {
 
     public init() {}
 
+    /// This version always hears on the Mac. A key is only for the later cleanup step.
     public static func plan(_ c: Config.Transcription) throws -> Backend {
-        let groq = Env.value("GROQ_API_KEY")
-        let openai = Env.value("OPENAI_API_KEY")
-        switch c.backend.lowercased() {
-        case "local": return .local
-        case "groq":
-            guard let groq else { throw TalkyError("backend is \"groq\" but GROQ_API_KEY is missing") }
-            return .groq(key: groq)
-        case "openai":
-            guard let openai else { throw TalkyError("backend is \"openai\" but OPENAI_API_KEY is missing") }
-            return .openai(key: openai)
-        default:
-            if let groq { return .groq(key: groq) }
-            if let openai { return .openai(key: openai) }
-            return .local
-        }
+        _ = c
+        return .local
     }
 
     /// Starts whisper-server ahead of time when local transcription is the plan.
@@ -136,6 +124,112 @@ struct MultipartForm {
     }
 }
 
+// MARK: - Model file
+
+public enum WhisperModel {
+    public static let setupName = "small"
+
+    public static func file(named name: String) -> URL {
+        Paths.modelsDir.appendingPathComponent("ggml-\(name).bin")
+    }
+
+    public static func isInstalled(_ name: String) -> Bool {
+        FileManager.default.fileExists(atPath: file(named: name).path)
+    }
+
+    /// Downloads ggml-\(name).bin into the Talky models folder. `onProgress` receives
+    /// nil when the server does not say the size, otherwise a fraction from 0 to 1.
+    public static func download(_ name: String, onProgress: @escaping @Sendable (Double?) -> Void) async throws {
+        if isInstalled(name) {
+            onProgress(1)
+            return
+        }
+        guard let remote = URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-\(name).bin") else {
+            throw TalkyError("Unknown model address")
+        }
+        Paths.ensure()
+        let box = ModelDownload(dest: file(named: name), onProgress: onProgress)
+        try await withTaskCancellationHandler {
+            try await box.run(remote)
+        } onCancel: {
+            box.cancel()
+        }
+        onProgress(1)
+    }
+}
+
+private final class ModelDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    let dest: URL
+    let onProgress: @Sendable (Double?) -> Void
+    private var continuation: CheckedContinuation<Void, Error>?
+    private var session: URLSession?
+    private var task: URLSessionDownloadTask?
+    private var storedError: Error?
+    private let lock = NSLock()
+
+    init(dest: URL, onProgress: @escaping @Sendable (Double?) -> Void) {
+        self.dest = dest
+        self.onProgress = onProgress
+    }
+
+    func run(_ url: URL) async throws {
+        let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+        self.session = session
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            lock.lock()
+            continuation = cont
+            lock.unlock()
+            let task = session.downloadTask(with: url)
+            self.task = task
+            task.resume()
+        }
+        session.finishTasksAndInvalidate()
+    }
+
+    func cancel() { task?.cancel() }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        if totalBytesExpectedToWrite > 0 {
+            onProgress(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+        } else {
+            onProgress(nil)
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        let status = (downloadTask.response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else {
+            storedError = TalkyError("Model download failed (HTTP \(status))")
+            return
+        }
+        do {
+            Paths.ensure()
+            if FileManager.default.fileExists(atPath: dest.path) {
+                try FileManager.default.removeItem(at: dest)
+            }
+            try FileManager.default.copyItem(at: location, to: dest)
+        } catch {
+            storedError = error
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        lock.lock()
+        let cont = continuation
+        continuation = nil
+        lock.unlock()
+        if let error {
+            cont?.resume(throwing: error)
+        } else if let storedError {
+            cont?.resume(throwing: storedError)
+        } else {
+            cont?.resume()
+        }
+    }
+}
+
 // MARK: - Local whisper.cpp
 
 /// Runs whisper.cpp as a subprocess. Prefers a long-lived whisper-server (model stays in memory,
@@ -162,6 +256,9 @@ public actor LocalWhisper {
     public nonisolated static func findBinary(_ name: String, override: String?) -> String? {
         var candidates: [String] = []
         if let override, !override.isEmpty { candidates.append((override as NSString).expandingTildeInPath) }
+        let bundled = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Resources/whisper/\(name)").path
+        candidates.append(bundled)
         candidates += ["/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)"]
         let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
         candidates += path.split(separator: ":").map { "\($0)/\(name)" }
@@ -170,7 +267,7 @@ public actor LocalWhisper {
 
     public func transcribe(wav: URL, config c: Config.Transcription) async throws -> String {
         guard let model = modelURL(c) else {
-            throw TalkyError("Whisper model \"\(c.localModel)\" not found. Run scripts/download-model.sh \(c.localModel)")
+            throw TalkyError("The speech model is not on this Mac yet.")
         }
         if c.useWhisperServer, await ensureServer(c) {
             do {
@@ -255,7 +352,7 @@ public actor LocalWhisper {
 
     private func viaCLI(wav: URL, model: URL, c: Config.Transcription) async throws -> String {
         guard let bin = Self.findBinary("whisper-cli", override: c.whisperCliPath) else {
-            throw TalkyError("whisper-cli not found. Install with: brew install whisper-cpp")
+            throw TalkyError("Talky is missing its speech engine. Reinstall Talky.")
         }
         let outBase = wav.deletingPathExtension().path
         var args = ["-m", model.path, "-f", wav.path, "-nt", "-np", "-otxt", "-of", outBase,
