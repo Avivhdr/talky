@@ -17,12 +17,5 @@ if [ -f "$REPO/.env" ] && [ ! -e "$CONFIG/.env" ]; then
   echo "Linked $REPO/.env -> $CONFIG/.env"
 fi
 
-if ! command -v whisper-cli >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/whisper-cli ]; then
-  echo "whisper.cpp is not installed. For offline transcription run: brew install whisper-cpp"
-fi
-if ! ls "$CONFIG"/models/ggml-*.bin >/dev/null 2>&1; then
-  echo "No local Whisper model yet. Download one with: scripts/download-model.sh small"
-fi
-
 open /Applications/Talky.app
 echo "Talky is running. Look for the waveform icon in the menu bar."

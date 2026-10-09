@@ -22,6 +22,13 @@ final class HotkeyTests: XCTestCase {
 }
 
 final class ConfigTests: XCTestCase {
+    func testTranscriptionStaysOnThisMac() throws {
+        XCTAssertEqual(try TranscriptionService.plan(Config().transcription), .local)
+        var cloud = Config.Transcription()
+        cloud.backend = "groq"
+        XCTAssertEqual(try TranscriptionService.plan(cloud), .local)
+    }
+
     func testPartialConfigKeepsDefaults() throws {
         let json = #"{"hotkey": "right_command", "transcription": {"backend": "local"}}"#
         let c = try Config.decode(merging: Data(json.utf8))
@@ -69,6 +76,32 @@ final class TextTests: XCTestCase {
         XCTAssertEqual(d.count, 44 + 8)
         XCTAssertEqual(String(decoding: d.prefix(4), as: UTF8.self), "RIFF")
         XCTAssertEqual(String(decoding: d[8..<12], as: UTF8.self), "WAVE")
+    }
+}
+
+final class KeyCheckTests: XCTestCase {
+    func testAcceptsHTTP200() {
+        let verdict = KeyCheck.interpret(status: 200, body: Data("{}".utf8))
+        XCTAssertTrue(verdict.ok)
+        XCTAssertEqual(verdict.message, "Key works")
+    }
+
+    func testReadsGroqError() {
+        let body = Data(#"{"error":{"message":"Invalid API Key","type":"invalid_request_error"}}"#.utf8)
+        let verdict = KeyCheck.interpret(status: 401, body: body)
+        XCTAssertFalse(verdict.ok)
+        XCTAssertEqual(verdict.message, "Invalid API Key")
+    }
+
+    func testReadsAnthropicError() {
+        let body = Data(#"{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}"#.utf8)
+        let verdict = KeyCheck.interpret(status: 401, body: body)
+        XCTAssertEqual(verdict.message, "invalid x-api-key")
+    }
+
+    func testFallsBackWhenTheBodyHasNoMessage() {
+        let verdict = KeyCheck.interpret(status: 500, body: Data("nope".utf8))
+        XCTAssertEqual(verdict.message, "The key was rejected (HTTP 500)")
     }
 }
 

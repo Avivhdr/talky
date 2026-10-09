@@ -19,6 +19,12 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/Talky"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+if [ ! -x .build/whisper/bin/whisper-cli ] || [ ! -x .build/whisper/bin/whisper-server ]; then
+  bash scripts/build-whisper.sh
+fi
+mkdir -p "$APP/Contents/Resources/whisper"
+cp .build/whisper/bin/whisper-cli .build/whisper/bin/whisper-server "$APP/Contents/Resources/whisper/"
+chmod +x "$APP/Contents/Resources/whisper/whisper-cli" "$APP/Contents/Resources/whisper/whisper-server"
 ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework \
   "$APP/Contents/Frameworks/Sparkle.framework"
 
@@ -47,5 +53,7 @@ FW="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
 "${SIGN[@]}" "$FW/Autoupdate"
 "${SIGN[@]}" "$FW/Updater.app"
 "${SIGN[@]}" "$APP/Contents/Frameworks/Sparkle.framework"
+"${SIGN[@]}" "$APP/Contents/Resources/whisper/whisper-cli"
+"${SIGN[@]}" "$APP/Contents/Resources/whisper/whisper-server"
 "${SIGN[@]}" --identifier dev.talky.Talky --entitlements Resources/Talky.entitlements "$APP"
 echo "Built $APP (signed with: $IDENTITY${TALKY_FEED_URL:+, updates from $TALKY_FEED_URL})"

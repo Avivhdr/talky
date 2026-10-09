@@ -93,8 +93,8 @@ public struct Config: Codable, Equatable {
     public var handsFree = HandsFree()
 
     public struct Transcription: Codable, Equatable {
-        /// auto | local | groq | openai. "auto" uses Groq, then OpenAI, then local, depending on which keys exist.
-        public var backend = "auto"
+        /// Kept so older config files still decode. This version always transcribes on the Mac.
+        public var backend = "local"
         /// small | small.en | medium | medium.en | an absolute path to a ggml model file.
         public var localModel = "small"
         /// Whisper language code ("en", "he", ...) or "auto".
