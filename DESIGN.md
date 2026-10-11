@@ -381,6 +381,9 @@ A numbered radio row inside one glass capsule.
 - **Web:** a fixed light-glass capsule, 52px tall, centered 20px from the top: the mark and the name at 600 16px, three section links in Secondary Ink (hover to Ink), and a small solid Download button. Below 760px it spans the width less 32px and drops the links.
 - **Native Settings:** the system sidebar with two rows, each with a 22pt colored icon tile (General gray, Pipes Lamp Violet), under the mark and version.
 
+### App Icon
+The field with the mark's three bars on it, in Liquid Glass. `Resources/AppIcon.icon` is an Icon Composer document with two groups. The back group is the field as an SVG: the navy-indigo gradient, violet light at the top right, blue rising from below, and a dim peach light (55%) in the lower-left corner. The front group is the three white bars of the mark as glass (specular on, 20% translucency, a neutral shadow at 50%), 12.6% of the canvas wide with 10.4% gaps, so they stay clear at small sizes. The system draws the dark, tinted and clear modes from these layers. Build with `actool`; it also writes an `.icns` for macOS 14 and 15.
+
 ### Keycaps
 Inline keys in running text (fn, ⌥, esc, 1-9): a small light-glass cap at 0.78em semibold, 0.42em radius, with the rim and the keycap shadow.
 

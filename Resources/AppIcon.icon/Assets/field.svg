@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#101F48"/>
+      <stop offset="0.5" stop-color="#141A4A"/>
+      <stop offset="1" stop-color="#0A1230"/>
+    </linearGradient>
+    <radialGradient id="violet" cx="900" cy="80" r="620" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6B4BFF" stop-opacity="0.9"/>
+      <stop offset="0.45" stop-color="#6B4BFF" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#6B4BFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="peach" cx="40" cy="1010" r="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF9A6B" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FF9A6B" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="560" cy="1180" r="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E5BFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#1E5BFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#base)"/>
+  <rect width="1024" height="1024" fill="url(#blue)"/>
+  <rect width="1024" height="1024" fill="url(#peach)"/>
+  <rect width="1024" height="1024" fill="url(#violet)"/>
+</svg>

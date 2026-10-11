@@ -27,6 +27,17 @@ ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sp
 ditto "$BIN_DIR/whisper.framework" "$APP/Contents/Frameworks/whisper.framework"
 
 PLIST="$APP/Contents/Info.plist"
+
+# The app icon. Resources/AppIcon.icon is an Icon Composer document. actool (from Xcode 26 or later)
+# turns it into Assets.car, the Liquid Glass icon for macOS 26 and later, and AppIcon.icns for earlier macOS.
+if xcrun actool Resources/AppIcon.icon --compile "$APP/Contents/Resources" --platform macosx \
+    --minimum-deployment-target 14.0 --app-icon AppIcon --output-partial-info-plist build/AppIcon.plist \
+    >/dev/null 2>&1; then
+  /usr/libexec/PlistBuddy -c "Merge build/AppIcon.plist" "$PLIST"
+else
+  echo "No icon: compiling Resources/AppIcon.icon needs actool from Xcode 26 or later."
+fi
+
 if [ -n "${TALKY_FEED_URL:-}" ]; then
   KEY="$(.build/artifacts/sparkle/Sparkle/bin/generate_keys --account dev.talky.Talky -p 2>/dev/null || true)"
   if [ -z "$KEY" ]; then

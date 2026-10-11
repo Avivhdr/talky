@@ -38,14 +38,14 @@ When you finish, Settings opens on Pipes, where you can write your own. The key 
 
 ### Build from source
 
-Requirements: macOS 14 or later, Xcode command line tools (`xcode-select --install`).
+Requirements: macOS 14 or later, Xcode command line tools (`xcode-select --install`). The app icon needs Xcode 26 or later; without it, `build-app.sh` builds Talky with no icon.
 
 ```bash
 # Build, copy to /Applications, link .env into ~/.config/talky, launch
 scripts/install.sh
 ```
 
-SwiftPM downloads the prebuilt whisper.cpp framework on the first build, and `build-app.sh` copies it into the app.
+SwiftPM downloads the prebuilt whisper.cpp framework on the first build, and `build-app.sh` copies it into the app. `build-app.sh` also compiles the app icon, `Resources/AppIcon.icon`, with `actool`. It is an Icon Composer document: open it in Icon Composer (it comes with Xcode) to change it.
 
 `install.sh` symlinks the repo's `.env` to `~/.config/talky/.env` if that file doesn't exist yet. To just build without installing: `scripts/build-app.sh` produces `build/Talky.app`. Source builds have no auto-updates unless you set `TALKY_FEED_URL`.
 
@@ -197,6 +197,8 @@ Sources/TalkyCore/
   Onboarding.swift     first-run window: speech model, permissions, pipes, a try
   Distribution.swift   Sparkle updater, uninstall
   AppDelegate.swift    menu bar, wiring, config file watcher
+Resources/
+  AppIcon.icon         the app icon (Icon Composer): the field, and the mark's three bars in glass
 ```
 
 ## Releasing
