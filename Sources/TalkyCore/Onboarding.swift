@@ -724,18 +724,22 @@ private struct WordRevealRenderer: TextRenderer, Animatable {
 struct Keycap: View {
     let key: String
     var large = false
-    init(_ key: String, large: Bool = false) {
+    /// On a plain Settings panel instead of the field: primary ink, at lower opacities so it works in light mode too.
+    var plain = false
+    init(_ key: String, large: Bool = false, plain: Bool = false) {
         self.key = key
         self.large = large
+        self.plain = plain
     }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: large ? 8 : 5, style: .continuous)
+        let ink = plain ? Color.primary : .white
         Text(key)
             .font(.system(size: large ? 15 : 11, weight: .semibold).monospacedDigit())
             .padding(.horizontal, large ? 10 : 6)
             .frame(minWidth: large ? 44 : 22, minHeight: large ? 36 : 20)
-            .background(shape.fill(Color.white.opacity(0.16)))
-            .overlay(shape.stroke(Color.white.opacity(0.26), lineWidth: 1))
+            .background(shape.fill(ink.opacity(plain ? 0.08 : 0.16)))
+            .overlay(shape.stroke(ink.opacity(plain ? 0.16 : 0.26), lineWidth: 1))
     }
 }

@@ -18,6 +18,73 @@ final class HotkeyTests: XCTestCase {
     func testLabels() {
         XCTAssertEqual(HotkeySpec.label("fn"), "fn")
         XCTAssertEqual(HotkeySpec.label("ctrl+opt+space"), "⌃⌥Space")
+        XCTAssertEqual(HotkeySpec.keycaps("right_option"), ["right ⌥"])
+        XCTAssertEqual(HotkeySpec.keycaps("cmd + shift + d"), ["⌘", "⇧", "D"])
+    }
+}
+
+final class HotkeyCaptureTests: XCTestCase {
+    // Key codes and the flag bits NSEvent sends with them.
+    let rightOption: Int64 = 61, leftControl: Int64 = 59, leftOption: Int64 = 58, fn: Int64 = 63
+    let rightOptionDown = CGEventFlags(rawValue: CGEventFlags.maskAlternate.rawValue | 0x40)
+    let controlOptionDown = CGEventFlags(rawValue: CGEventFlags.maskControl.rawValue | 0x01 | CGEventFlags.maskAlternate.rawValue | 0x20)
+
+    func testLoneModifierTap() {
+        var c = HotkeyCapture()
+        XCTAssertNil(c.flagsChanged(keyCode: rightOption, flags: rightOptionDown))
+        XCTAssertEqual(c.heldKeycaps, ["right ⌥"])
+        XCTAssertEqual(c.flagsChanged(keyCode: rightOption, flags: []), .captured("right_option"))
+
+        var f = HotkeyCapture()
+        XCTAssertNil(f.flagsChanged(keyCode: fn, flags: .maskSecondaryFn))
+        XCTAssertEqual(f.flagsChanged(keyCode: fn, flags: []), .captured("fn"))
+    }
+
+    func testChord() {
+        var c = HotkeyCapture()
+        _ = c.flagsChanged(keyCode: leftControl, flags: CGEventFlags(rawValue: CGEventFlags.maskControl.rawValue | 0x01))
+        _ = c.flagsChanged(keyCode: leftOption, flags: controlOptionDown)
+        XCTAssertEqual(c.heldKeycaps, ["⌃", "⌥"])
+        guard case .captured(let name)? = c.keyDown(keyCode: 49, flags: controlOptionDown) else { return XCTFail("⌃⌥Space is a hotkey") }
+        XCTAssertEqual(name, "ctrl+opt+space")
+        XCTAssertEqual(HotkeySpec.parse(name), .chord(keyCode: 49, modifiers: [.maskControl, .maskAlternate]))
+        // Letting go of the modifiers after the chord records nothing more.
+        XCTAssertNil(c.flagsChanged(keyCode: leftOption, flags: CGEventFlags(rawValue: CGEventFlags.maskControl.rawValue | 0x01)))
+        XCTAssertNil(c.flagsChanged(keyCode: leftControl, flags: []))
+    }
+
+    func testTwoModifiersAloneRecordNothing() {
+        var c = HotkeyCapture()
+        _ = c.flagsChanged(keyCode: leftControl, flags: CGEventFlags(rawValue: CGEventFlags.maskControl.rawValue | 0x01))
+        _ = c.flagsChanged(keyCode: leftOption, flags: controlOptionDown)
+        XCTAssertNil(c.flagsChanged(keyCode: leftOption, flags: CGEventFlags(rawValue: CGEventFlags.maskControl.rawValue | 0x01)))
+        XCTAssertNil(c.flagsChanged(keyCode: leftControl, flags: []))
+    }
+
+    func testKeysThatWouldStopTyping() {
+        var c = HotkeyCapture()
+        if case .rejected? = c.keyDown(keyCode: 0, flags: []) {} else { XCTFail("a plain A stops A from typing") }
+        if case .rejected? = c.keyDown(keyCode: 0, flags: .maskShift) {} else { XCTFail("⇧A stops capital A from typing") }
+        if case .rejected? = c.keyDown(keyCode: 123, flags: .maskControl) {} else { XCTFail("HotkeySpec has no name for ←") }
+        XCTAssertEqual(c.keyDown(keyCode: 105, flags: []), .captured("f13"))
+        XCTAssertEqual(c.keyDown(keyCode: 2, flags: [.maskCommand, .maskShift]), .captured("shift+cmd+d"))
+        XCTAssertEqual(c.keyDown(keyCode: 36, flags: .maskControl), .captured("ctrl+return"))
+    }
+
+    func testEveryKeyNameParses() {
+        for (code, name) in HotkeyCapture.keyNames {
+            XCTAssertEqual(HotkeySpec.parse("ctrl+\(name)"), .chord(keyCode: code, modifiers: .maskControl), name)
+        }
+        for (code, name) in HotkeyCapture.modifierNames {
+            guard case .modifier(let k, _)? = HotkeySpec.parse(name) else { return XCTFail(name) }
+            XCTAssertEqual(k, code)
+        }
+    }
+
+    func testSameKeyUnderTwoNames() {
+        XCTAssertTrue(HotkeyField.same("fn", "globe"))
+        XCTAssertTrue(HotkeyField.same("cmd+shift+d", "shift+cmd+d"))
+        XCTAssertFalse(HotkeyField.same("right_option", "left_option"))
     }
 }
 

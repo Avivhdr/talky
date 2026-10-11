@@ -126,7 +126,9 @@ Talky watches the folder, so saving `config.json` in an editor applies immediate
 
 ### Hotkey names
 
-A hotkey is either a single modifier or a chord.
+The easiest way to change a hotkey is in Settings, General. Click the Dictate or Transform selected text field and press the new keys: tap one modifier key by itself (`fn`, right `⌥`), or press a key with `⌃`, `⌥` or `⌘` (`⌃⌥Space`). Esc cancels. The menu beside each field has suggestions. Talky refuses a plain key or a `⇧`-only chord, because that key would stop typing in every app, and it refuses the key the other hotkey already uses.
+
+In `config.json`, a hotkey is either a single modifier or a chord.
 
 - Single modifiers: `fn`, `right_option`, `left_option`, `right_command`, `left_command`, `right_control`, `left_control`, `right_shift`, `left_shift`. The left and right versions are told apart.
 - Chords: modifiers `cmd`, `ctrl`, `opt`, `shift` joined with `+` and a key: `ctrl+opt+space`, `cmd+shift+d`, `f13`. Talky swallows chord hotkeys so they don't type anything.
@@ -171,9 +173,11 @@ Every pipe runs inside a fixed wrapper prompt that tells Claude to return only t
 
 ```bash
 swift build          # debug build
-swift test           # unit tests: hotkey parsing, config merging, .env parsing, transcript cleanup
+swift test           # unit tests: hotkey parsing and recording, config merging, .env parsing, transcript cleanup
 scripts/build-app.sh # release .app bundle
 ```
+
+The `Makefile` wraps these: `make run`, `make build`, `make test`, `make install` and `make dry-run`.
 
 The app needs to run from a bundle (`build/Talky.app`) because the microphone prompt requires the usage string in Info.plist. Set `TALKY_CONFIG_DIR=/tmp/talky-test` to point it at a scratch config folder.
 
@@ -189,6 +193,7 @@ Sources/TalkyCore/
   TextIO.swift         paste, clipboard snapshot/restore, selected text, permissions
   Pill.swift           floating pill, pipe chips, transform picker
   Settings.swift       settings window: General, and Pipes (edit and test together)
+  HotkeyField.swift    the Settings field that records a new hotkey
   Onboarding.swift     first-run window: speech model, permissions, pipes, a try
   Distribution.swift   Sparkle updater, uninstall
   AppDelegate.swift    menu bar, wiring, config file watcher
@@ -196,7 +201,11 @@ Sources/TalkyCore/
 
 ## Releasing
 
-`scripts/release.sh` publishes a version. Bump `CFBundleShortVersionString` in `Resources/Info.plist`, commit, and run it from `main`. It bumps the build number, builds a universal app signed with your Developer ID, notarizes it, and writes three files into `web/`: the Sparkle update zip, `appcast.xml` and `Talky-latest.dmg`. Then it commits, pushes, waits until the site serves the new appcast and creates a GitHub release.
+In Claude Code, `/release` cuts a release (`/release minor`, `/release 1.2.0`, or `/release dry-run`). It follows `.claude/skills/release/SKILL.md`: bump the version, run the script, then check the live feed and downloads.
+
+`scripts/release.sh` publishes a version. Bump `CFBundleShortVersionString` in `Resources/Info.plist`, leave the change uncommitted, and run it from `main`. It runs the tests, bumps the build number, builds a universal app signed with your Developer ID, notarizes it, and writes three files into `web/`: the Sparkle update zip, `appcast.xml` and `Talky-latest.dmg`. Then it commits both version numbers, pushes, waits until the site serves the new appcast, checks that the served zip has the length the appcast names, and creates a GitHub release.
+
+`scripts/release.sh --dry-run` does the build, signing and notarization into `dist/web-preview/` and stops there. It commits and publishes nothing, and puts the build number back.
 
 `web/` is the website. The Vercel project `usetalky` serves it at https://usetalky.vercel.app, with root directory `web/`. `scripts/release.sh` uses that address as `TALKY_SITE`. A push to `main` updates the site after GitHub repo `Avivhdr/talky` is connected to that project. The setup steps (certificate, notary profile, Sparkle key) are at the top of the script. Keep this address and the Sparkle key. Every installed copy reads its feed URL and public key from its own Info.plist, so a change to either one stops updates for those copies.
 

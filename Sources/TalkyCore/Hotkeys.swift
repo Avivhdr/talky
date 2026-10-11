@@ -56,12 +56,15 @@ public enum HotkeySpec: Equatable {
     }
 
     /// Short label for UI hints, e.g. "fn" or "⌃⌥Space".
-    public static func label(_ raw: String) -> String {
-        let s = raw.lowercased()
+    public static func label(_ raw: String) -> String { keycaps(raw).joined() }
+
+    /// One label per key, e.g. ["right ⌥"] or ["⌃", "⌥", "Space"], for drawing the hotkey as key caps.
+    public static func keycaps(_ raw: String) -> [String] {
+        let s = raw.lowercased().replacingOccurrences(of: " ", with: "")
         let names = ["fn": "fn", "globe": "fn", "right_option": "right ⌥", "left_option": "left ⌥",
                      "right_command": "right ⌘", "left_command": "left ⌘", "right_control": "right ⌃",
                      "left_control": "left ⌃", "right_shift": "right ⇧", "left_shift": "left ⇧"]
-        if let n = names[s] { return n }
+        if let n = names[s] { return [n] }
         return s.split(separator: "+").map { part -> String in
             switch part {
             case "cmd", "command": return "⌘"
@@ -70,7 +73,77 @@ public enum HotkeySpec: Equatable {
             case "shift": return "⇧"
             default: return part.capitalized
             }
-        }.joined()
+        }
+    }
+}
+
+/// Turns the keys pressed in the Settings shortcut recorder into a hotkey name that HotkeySpec parses.
+/// A modifier pressed and released alone gives that modifier ("right_option"). Modifiers held with a
+/// key give a chord ("ctrl+opt+space"). It takes NSEvent key codes and flags, whose bits match CGEventFlags.
+public struct HotkeyCapture {
+    public enum Result: Equatable {
+        case captured(String)
+        /// The keys can't be a Talky hotkey. The text says why, for the recorder to show.
+        case rejected(String)
+    }
+
+    static let modifierNames: [Int64: String] = [
+        63: "fn", 61: "right_option", 58: "left_option", 54: "right_command", 55: "left_command",
+        62: "right_control", 59: "left_control", 60: "right_shift", 56: "left_shift",
+    ]
+    static let modifierSymbols: [(codes: Set<Int64>, symbol: String)] = [
+        ([63], "fn"), ([59, 62], "⌃"), ([58, 61], "⌥"), ([56, 60], "⇧"), ([55, 54], "⌘"),
+    ]
+    /// Key code to name, without the aliases ("enter", "backspace"), so a recorded hotkey has one spelling.
+    static let keyNames: [Int64: String] = Dictionary(
+        HotkeySpec.keyCodes.filter { !["enter", "backspace"].contains($0.key) }.map { ($0.value, $0.key) },
+        uniquingKeysWith: { first, _ in first })
+
+    /// Modifier key codes held now.
+    private var held = Set<Int64>()
+    /// The one modifier pressed so far, while no other key has joined it.
+    private var lone: Int64?
+
+    public init() {}
+
+    /// The modifiers held now, for the recorder to show while it waits: ["right ⌥"] for one, ["⌃", "⌥"] for more.
+    public var heldKeycaps: [String] {
+        if held.count == 1, let code = held.first, let name = Self.modifierNames[code] {
+            return HotkeySpec.keycaps(name)
+        }
+        return Self.modifierSymbols.filter { !$0.codes.isDisjoint(with: held) }.map(\.symbol)
+    }
+
+    public mutating func flagsChanged(keyCode: Int64, flags: CGEventFlags) -> Result? {
+        guard let name = Self.modifierNames[keyCode], let (_, mask) = HotkeySpec.modifierKeys[name] else { return nil }
+        if flags.rawValue & mask != 0 {
+            lone = held.isEmpty ? keyCode : nil
+            held.insert(keyCode)
+            return nil
+        }
+        held.remove(keyCode)
+        guard lone == keyCode else { return nil }
+        lone = nil
+        return .captured(name)
+    }
+
+    public mutating func keyDown(keyCode: Int64, flags: CGEventFlags) -> Result? {
+        lone = nil
+        guard let key = Self.keyNames[keyCode] else {
+            return .rejected("Talky can't use that key. Use a letter, a number, Space or an F key.")
+        }
+        let mods = flags.intersection(HotkeySpec.chordMask)
+        let isFunctionKey = key.count > 1 && key.hasPrefix("f")
+        // A plain key, or one with only ⇧, would stop that key from typing in every app.
+        if !isFunctionKey, mods.subtracting(.maskShift).isEmpty {
+            return .rejected("Add ⌃, ⌥ or ⌘ to that key, or press one modifier key by itself.")
+        }
+        var parts: [String] = []
+        if mods.contains(.maskControl) { parts.append("ctrl") }
+        if mods.contains(.maskAlternate) { parts.append("opt") }
+        if mods.contains(.maskShift) { parts.append("shift") }
+        if mods.contains(.maskCommand) { parts.append("cmd") }
+        return .captured((parts + [key]).joined(separator: "+"))
     }
 }
 
@@ -97,6 +170,9 @@ public protocol KeyMonitorDelegate: AnyObject {
 @MainActor
 public final class KeyMonitor {
     public weak var delegate: KeyMonitorDelegate?
+    /// True while Settings records a new hotkey: the tap passes every key through, so the keys
+    /// reach the recorder and the current hotkeys don't start a dictation.
+    public static var isPaused = false
     public var mainSpec: HotkeySpec?
     public var transformSpec: HotkeySpec?
 
@@ -156,7 +232,7 @@ public final class KeyMonitor {
         }
         // Our own synthetic Cmd-C / Cmd-V.
         if event.getIntegerValueField(.eventSourceUnixProcessID) == ownPID { return false }
-        guard let delegate, delegate.hotkeysEnabled else {
+        guard let delegate, delegate.hotkeysEnabled, !Self.isPaused else {
             if mainDown { mainDown = false; delegate?.mainHotkeyUp() }
             return false
         }

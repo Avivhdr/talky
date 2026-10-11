@@ -374,6 +374,7 @@ A numbered radio row inside one glass capsule.
 
 ### Inputs / Fields
 - **Native only.** The Anthropic key uses the system rounded-border secure field with a Test Key button beside it (max 420pt in Settings) and one caption line under it: a "Get a key in the Anthropic Console ↗" link when empty, then the test result (green when the key works, red when Anthropic refuses it, orange when Talky can't reach Anthropic). Prompt editors and the test text use the system text editor on the text background, 10pt radius, a primary-color 10% stroke and 8pt padding. Focus is the system focus ring.
+- **Hotkey field (Settings):** a 28pt field on the text background, 7pt radius, with a primary-color 12% stroke (20% on hover). The left part (at least 150pt, wider for a long chord) holds the hotkey as plain key caps; a hairline separates a chevron menu of suggestions, the default marked "(Default)". A click records: the stroke turns to the accent color with a 3pt accent ring at 35% outside it, the field says "Press keys…" or shows the modifiers held, and a caption under it says what works. A refused key shows its reason in system orange. Esc, a click outside the field or a closed window cancels.
 - The web page has no form fields.
 
 ### Navigation
@@ -422,7 +423,7 @@ Welcome, Speech model, Permissions, Pipes, Try dictation, then Try a pipe on you
 - **Try dictation:** a 132pt glass text box the user dictates into, a status block under it (what blocks Talky; or key caps for fn, fn fn and esc, and with a key also 1–9; or a green "That's Talky."), and the fn emoji-picker tip at the bottom. With a key its button is Continue; without one it is the last step.
 - **Try a pipe on your text:** only with a key. A 160pt glass text box that starts with a hurried draft message, focused and all selected, so the first tap of the transform key opens the picker. Under it: key caps for the transform key, 1–9 and esc; or a green "Claude rewrote it." with a small "Restore the Text" button to try another pipe. A warning with a button replaces them when Accessibility is off.
 - **After setup:** Finish opens Settings on Pipes. If Talky can't dictate yet (a permission is off, or the model is missing), it opens on General. Closing the window early opens nothing.
-- **Key caps (native):** 11pt semibold on white 16% with a white 26% rim, 5pt radius, at least 22 × 20pt. The large welcome cap is 15pt, 8pt radius, at least 44 × 36pt.
+- **Key caps (native):** 11pt semibold on white 16% with a white 26% rim, 5pt radius, at least 22 × 20pt. The large welcome cap is 15pt, 8pt radius, at least 44 × 36pt. On plain Settings panels the caps use the primary label color: an 8% fill and a 16% rim.
 
 ## Do's and Don'ts
 

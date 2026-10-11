@@ -114,6 +114,7 @@ struct GeneralTab: View {
     @State private var permissions = PermissionState()
     private let refresh = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
 
+    /// Suggestions in the shortcut menus. The first one is the default.
     static let mainHotkeys = ["fn", "right_option", "right_command", "right_control", "ctrl+opt+space", "f13"]
     static let transformHotkeys = ["right_option", "right_command", "right_control", "ctrl+opt+t", "f14"]
     static let languages = [("auto", "Detect automatically"), ("en", "English"), ("he", "Hebrew"), ("es", "Spanish"),
@@ -138,7 +139,10 @@ struct GeneralTab: View {
                     }
                 }
                 SettingsGroup("Dictation") {
-                    SettingsRow("Dictate") { hotkeyPicker("Dictate", $store.config.hotkey, Self.mainHotkeys) }
+                    SettingsRow("Dictate") {
+                        HotkeyField(title: "Dictate", hotkey: $store.config.hotkey, suggestions: Self.mainHotkeys,
+                                    otherTitle: "Transform selected text", otherHotkey: store.config.transformHotkey)
+                    }
                     Divider()
                     SettingsRow("Language") { choicePicker("Language", $store.config.transcription.language, Self.languages) }
                     Divider()
@@ -185,7 +189,9 @@ struct GeneralTab: View {
             }
             Divider()
             SettingsRow("Transform selected text") {
-                hotkeyPicker("Transform selected text", $store.config.transformHotkey, Self.transformHotkeys).disabled(!on)
+                HotkeyField(title: "Transform selected text", hotkey: $store.config.transformHotkey,
+                            suggestions: Self.transformHotkeys, otherTitle: "Dictate", otherHotkey: store.config.hotkey)
+                    .disabled(!on)
             }
         }
     }
@@ -214,17 +220,6 @@ struct GeneralTab: View {
                 Button("Uninstall Talky…", role: .destructive) { Uninstaller.confirmAndRun() }
             }
         }
-    }
-
-    func hotkeyPicker(_ title: String, _ binding: Binding<String>, _ options: [String]) -> some View {
-        Picker(title, selection: binding) {
-            ForEach(options, id: \.self) { Text(HotkeySpec.label($0)).tag($0) }
-            if !options.contains(binding.wrappedValue) {
-                Text(HotkeySpec.label(binding.wrappedValue)).tag(binding.wrappedValue)
-            }
-        }
-        .labelsHidden()
-        .fixedSize()
     }
 
     /// A picker over fixed choices that still shows a hand-edited value from config.json.
