@@ -81,6 +81,30 @@ final class HotkeyCaptureTests: XCTestCase {
         }
     }
 
+    func testTapHotkeyModifier() {
+        var t = TapHotkey(spec: HotkeySpec.parse("right_command"))
+        let down = CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x10)
+        XCTAssertEqual(t.flagsChanged(code: 54, flags: down), false)
+        XCTAssertEqual(t.flagsChanged(code: 54, flags: []), true, "a clean tap fires")
+
+        XCTAssertEqual(t.flagsChanged(code: 54, flags: down), false)
+        XCTAssertFalse(t.keyDown(code: 8, flags: down, isRepeat: false), "⌘C is not the hotkey")
+        XCTAssertEqual(t.flagsChanged(code: 54, flags: []), false, "⌘C does not fire it")
+
+        XCTAssertNil(t.flagsChanged(code: 61, flags: .maskAlternate), "another modifier is not the hotkey")
+    }
+
+    func testTapHotkeyChordFiresOnRelease() {
+        var t = TapHotkey(spec: HotkeySpec.parse("ctrl+opt+h"))
+        let mods: CGEventFlags = [.maskControl, .maskAlternate]
+        XCTAssertTrue(t.keyDown(code: 4, flags: mods, isRepeat: false))
+        XCTAssertTrue(t.keyDown(code: 4, flags: mods, isRepeat: true))
+        XCTAssertEqual(t.keyUp(code: 4), true)
+        XCTAssertEqual(t.keyUp(code: 4), false, "one press fires once")
+        XCTAssertNil(t.keyUp(code: 5))
+        XCTAssertFalse(t.keyDown(code: 4, flags: .maskControl, isRepeat: false), "⌃H alone is not the chord")
+    }
+
     func testSameKeyUnderTwoNames() {
         XCTAssertTrue(HotkeyField.same("fn", "globe"))
         XCTAssertTrue(HotkeyField.same("cmd+shift+d", "shift+cmd+d"))
@@ -97,6 +121,16 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(c.transcription.model, "large-v3-turbo-q5_0")
         XCTAssertEqual(c.handsFree.maxSeconds, 300)
         XCTAssertFalse(c.clipboard.restorePrevious)
+    }
+
+    func testHandsFreeHotkeyDefault() throws {
+        XCTAssertEqual(try Config.decode(merging: Data("{}".utf8)).handsFreeHotkey, "right_command")
+        // An older file that already uses right ⌘ for another hotkey gets no hands-free hotkey.
+        let clash = try Config.decode(merging: Data(#"{"transformHotkey": "right_command"}"#.utf8))
+        XCTAssertEqual(clash.handsFreeHotkey, "")
+        // A choice the user made stays.
+        let off = try Config.decode(merging: Data(#"{"handsFreeHotkey": ""}"#.utf8))
+        XCTAssertEqual(off.handsFreeHotkey, "")
     }
 
     func testKeyCheckVerdicts() {

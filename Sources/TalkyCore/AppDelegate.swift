@@ -68,6 +68,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
     private func apply(_ config: Config) {
         keyMonitor.mainSpec = HotkeySpec.parse(config.hotkey)
         keyMonitor.transformSpec = HotkeySpec.parse(config.transformHotkey)
+        keyMonitor.handsFreeSpec = HotkeySpec.parse(config.handsFreeHotkey)
         keyMonitor.resetState()
         SpeechModel.shared.use(config.transcription.model)
         SpeechModel.shared.refresh()

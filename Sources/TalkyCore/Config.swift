@@ -86,6 +86,8 @@ public struct Config: Codable, Equatable {
     public var hotkey = "fn"
     /// Tap with text selected to open the transform picker.
     public var transformHotkey = "right_option"
+    /// Tap to start a hands-free recording, tap again to stop. "" turns it off.
+    public var handsFreeHotkey = "right_command"
     public var showPipesInPill = true
     public var transcription = Transcription()
     public var llm = LLM()
@@ -130,8 +132,13 @@ public struct Config: Codable, Equatable {
         guard let user = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "Talky", code: 1, userInfo: [NSLocalizedDescriptionKey: "config.json must be a JSON object"])
         }
-        let merged = deepMerge(defaults, user)
-        return try JSONDecoder().decode(Config.self, from: JSONSerialization.data(withJSONObject: merged))
+        var config = try JSONDecoder().decode(Config.self, from: JSONSerialization.data(withJSONObject: deepMerge(defaults, user)))
+        // A file from before the hands-free hotkey may use its default key for another hotkey. Leave it off then.
+        if user["handsFreeHotkey"] == nil,
+           [config.hotkey, config.transformHotkey].contains(where: { HotkeySpec.parse($0) == HotkeySpec.parse(config.handsFreeHotkey) }) {
+            config.handsFreeHotkey = ""
+        }
+        return config
     }
 
     static func deepMerge(_ base: [String: Any], _ over: [String: Any]) -> [String: Any] {

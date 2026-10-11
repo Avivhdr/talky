@@ -2,14 +2,20 @@ import AppKit
 import SwiftUI
 
 /// A hotkey setting in Settings. Click the field and press the new keys, or pick a suggestion from the menu.
-/// The two Talky hotkeys can't be the same key, so each field knows the other one.
+/// Two Talky hotkeys can't be the same key, so each field knows the others.
 struct HotkeyField: View {
+    struct Other {
+        var title: String
+        var hotkey: String
+    }
+
     let title: String
     @Binding var hotkey: String
     /// The first one is the default.
     let suggestions: [String]
-    let otherTitle: String
-    let otherHotkey: String
+    let others: [Other]
+    /// Adds "None" to the menu. An empty hotkey is off.
+    var allowsNone = false
 
     @StateObject private var recorder = HotkeyRecorder()
     @State private var hovering = false
@@ -58,7 +64,11 @@ struct HotkeyField: View {
         } label: {
             HStack(spacing: 4) {
                 if !recorder.isRecording {
-                    caps(HotkeySpec.keycaps(hotkey))
+                    if hotkey.isEmpty {
+                        Text("None").foregroundStyle(.secondary).padding(.leading, 3)
+                    } else {
+                        caps(HotkeySpec.keycaps(hotkey))
+                    }
                 } else if recorder.held.isEmpty {
                     Text("Press keys…").foregroundStyle(.secondary).padding(.leading, 3)
                 } else {
@@ -75,7 +85,7 @@ struct HotkeyField: View {
         .buttonStyle(.plain)
         .help(recorder.isRecording ? HotkeyRecorder.instructions : "Click, then press the keys you want for \(title).")
         .accessibilityLabel("\(title) shortcut")
-        .accessibilityValue(recorder.isRecording ? "Recording" : HotkeySpec.label(hotkey))
+        .accessibilityValue(recorder.isRecording ? "Recording" : hotkey.isEmpty ? "None" : HotkeySpec.label(hotkey))
         .accessibilityHint("Click, then press the new keys.")
     }
 
@@ -90,8 +100,12 @@ struct HotkeyField: View {
                     Toggle(isOn: Binding(get: { Self.same(key, hotkey) }, set: { _ in choose(key) })) {
                         Text(key == suggestions.first ? "\(HotkeySpec.label(key)) (Default)" : HotkeySpec.label(key))
                     }
-                    .disabled(Self.same(key, otherHotkey))
+                    .disabled(owner(of: key) != nil)
                 }
+            }
+            if allowsNone {
+                Divider()
+                Toggle("None", isOn: Binding(get: { hotkey.isEmpty }, set: { _ in choose("") }))
             }
         } label: {
             Image(systemName: "chevron.down")
@@ -110,15 +124,20 @@ struct HotkeyField: View {
 
     private func choose(_ key: String) {
         recorder.stop()
-        guard !Self.same(key, otherHotkey) else { return }
+        guard key.isEmpty || owner(of: key) == nil else { return }
         hotkey = key
     }
 
     /// Saves the recorded hotkey, or returns why it can't be used.
     private func accept(_ name: String) -> String? {
-        if Self.same(name, otherHotkey) { return "\(otherTitle) uses \(HotkeySpec.label(otherHotkey)) already." }
+        if let other = owner(of: name) { return "\(other.title) uses \(HotkeySpec.label(other.hotkey)) already." }
         hotkey = name
         return nil
+    }
+
+    /// The other hotkey that uses this key, if one does.
+    private func owner(of key: String) -> Other? {
+        others.first { !$0.hotkey.isEmpty && Self.same(key, $0.hotkey) }
     }
 
     /// "fn" and "globe" are the same key, so compare what the names parse to.

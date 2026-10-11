@@ -6,6 +6,7 @@ import AppKit
 ///   hold                     -> record while held, transcribe on release
 ///   short tap, short tap     -> hands-free; the next press stops and transcribes
 ///   short single tap         -> ignored (recording discarded)
+/// Hands-free hotkey: a tap starts a hands-free recording, the next tap stops and transcribes.
 /// Transform hotkey with text selected opens the picker: pick a pipe (click or digit),
 /// or use the main hotkey to dictate an ad-hoc instruction.
 /// Esc cancels whatever is in flight and is never swallowed.
@@ -102,6 +103,26 @@ public final class Controller: KeyMonitorDelegate {
         } else {
             lastTapUpAt = Date()
             abortRecording()
+        }
+    }
+
+    public func handsFreeHotkeyFired() {
+        switch phase {
+        case .recording:
+            // Held or hands-free, a tap ends it. A main hotkey still down then has nothing to finish.
+            mainDownAt = nil
+            finishRecording()
+        case .idle, .picker:
+            if let problem = recordingProblem { return showRecordingProblem(problem) }
+            lastTapUpAt = nil
+            if phase == .picker, let sel = pickerSelection {
+                purpose = .instruction(sel)
+            } else {
+                purpose = .dictate
+            }
+            startRecording(mode: .handsFree)
+        case .processing:
+            break
         }
     }
 

@@ -149,12 +149,63 @@ public struct HotkeyCapture {
 
 public enum PickerKey { case up, down, choose }
 
+/// A hotkey that fires once per tap: a clean tap of a lone modifier, or a chord when its key comes up.
+/// The transform hotkey and the hands-free hotkey work this way.
+struct TapHotkey {
+    var spec: HotkeySpec?
+    private var modifierDownAt: Date?
+    private var dirty = false
+    private var chordDown = false
+
+    init(spec: HotkeySpec? = nil) { self.spec = spec }
+
+    /// A modifier changed. Returns nil when it isn't this hotkey's modifier, else whether the tap fired.
+    mutating func flagsChanged(code: Int64, flags: CGEventFlags) -> Bool? {
+        guard case let .modifier(k, mask)? = spec, code == k else {
+            if modifierDownAt != nil { dirty = true }
+            return nil
+        }
+        if flags.rawValue & mask != 0 {
+            modifierDownAt = Date()
+            dirty = false
+            return false
+        }
+        guard let at = modifierDownAt else { return false }
+        modifierDownAt = nil
+        // A clean tap only. Holding the key as ⌥ or ⌘ for other keys must not fire.
+        return !dirty && Date().timeIntervalSince(at) < 0.5
+    }
+
+    /// A key went down. Returns true when it is this hotkey's chord, which the monitor swallows.
+    mutating func keyDown(code: Int64, flags: CGEventFlags, isRepeat: Bool) -> Bool {
+        if modifierDownAt != nil { dirty = true }
+        guard case let .chord(k, mods)? = spec, code == k, flags.intersection(HotkeySpec.chordMask) == mods else { return false }
+        if !isRepeat { chordDown = true }
+        return true
+    }
+
+    /// A key came up. Returns nil when it isn't this chord's key, else whether the chord fired.
+    /// It fires on release, so the chord's modifiers are up before Talky copies or types.
+    mutating func keyUp(code: Int64) -> Bool? {
+        guard case let .chord(k, _)? = spec, code == k else { return nil }
+        defer { chordDown = false }
+        return chordDown
+    }
+
+    mutating func reset() {
+        modifierDownAt = nil
+        chordDown = false
+    }
+}
+
 @MainActor
 public protocol KeyMonitorDelegate: AnyObject {
     var hotkeysEnabled: Bool { get }
     func mainHotkeyDown()
     func mainHotkeyUp()
     func transformHotkeyFired()
+    /// A tap of the hands-free hotkey: start a hands-free recording, or stop the one in progress.
+    func handsFreeHotkeyFired()
     func escapePressed()
     /// Return true to swallow the key so the digit doesn't reach the focused app.
     func digitPressed(_ n: Int) -> Bool
@@ -174,14 +225,20 @@ public final class KeyMonitor {
     /// reach the recorder and the current hotkeys don't start a dictation.
     public static var isPaused = false
     public var mainSpec: HotkeySpec?
-    public var transformSpec: HotkeySpec?
+    public var transformSpec: HotkeySpec? {
+        get { transformTap.spec }
+        set { transformTap.spec = newValue }
+    }
+    public var handsFreeSpec: HotkeySpec? {
+        get { handsFreeTap.spec }
+        set { handsFreeTap.spec = newValue }
+    }
 
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var mainDown = false
-    private var transformModDownAt: Date?
-    private var transformDirty = false
-    private var transformChordDown = false
+    private var transformTap = TapHotkey()
+    private var handsFreeTap = TapHotkey()
     private var swallowedKeyUps = Set<Int64>()
     private let ownPID = Int64(ProcessInfo.processInfo.processIdentifier)
 
@@ -221,8 +278,8 @@ public final class KeyMonitor {
 
     public func resetState() {
         mainDown = false
-        transformModDownAt = nil
-        transformChordDown = false
+        transformTap.reset()
+        handsFreeTap.reset()
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Bool {
@@ -253,23 +310,15 @@ public final class KeyMonitor {
                 }
                 return false
             }
-            if case let .modifier(k, mask)? = transformSpec, code == k {
-                if flags.rawValue & mask != 0 {
-                    transformModDownAt = Date()
-                    transformDirty = false
-                } else if let at = transformModDownAt {
-                    transformModDownAt = nil
-                    // A clean tap only. Holding it as ⌥ for typing special characters must not trigger.
-                    if !transformDirty, Date().timeIntervalSince(at) < 0.5 { async { $0.transformHotkeyFired() } }
-                }
-                return false
-            }
-            if transformModDownAt != nil { transformDirty = true }
+            if transformTap.flagsChanged(code: code, flags: flags) == true { async { $0.transformHotkeyFired() } }
+            if handsFreeTap.flagsChanged(code: code, flags: flags) == true { async { $0.handsFreeHotkeyFired() } }
             return false
 
         case .keyDown:
-            if transformModDownAt != nil { transformDirty = true }
             let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+            // Both run, so any key also spoils a modifier tap that is in progress.
+            let isTransformChord = transformTap.keyDown(code: code, flags: flags, isRepeat: isRepeat)
+            let isHandsFreeChord = handsFreeTap.keyDown(code: code, flags: flags, isRepeat: isRepeat)
             if case let .chord(k, mods)? = mainSpec, code == k, flags.intersection(HotkeySpec.chordMask) == mods {
                 if !isRepeat, !mainDown {
                     mainDown = true
@@ -277,10 +326,7 @@ public final class KeyMonitor {
                 }
                 return true
             }
-            if case let .chord(k, mods)? = transformSpec, code == k, flags.intersection(HotkeySpec.chordMask) == mods {
-                if !isRepeat { transformChordDown = true }
-                return true
-            }
+            if isTransformChord || isHandsFreeChord { return true }
             if code == Self.escapeCode {
                 async { $0.escapePressed() }
                 return false
@@ -316,12 +362,12 @@ public final class KeyMonitor {
                 }
                 return true
             }
-            if case let .chord(k, _)? = transformSpec, code == k {
-                // Fire on release so the chord's modifiers are up before we send Cmd-C.
-                if transformChordDown {
-                    transformChordDown = false
-                    async { $0.transformHotkeyFired() }
-                }
+            if let fired = transformTap.keyUp(code: code) {
+                if fired { async { $0.transformHotkeyFired() } }
+                return true
+            }
+            if let fired = handsFreeTap.keyUp(code: code) {
+                if fired { async { $0.handsFreeHotkeyFired() } }
                 return true
             }
             return false

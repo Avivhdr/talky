@@ -14,7 +14,8 @@ No accounts and no telemetry.
 | Action | What happens |
 | --- | --- |
 | Hold `fn` | Records while held. On release it transcribes, runs the default pipe, and pastes. |
-| Double-tap `fn` | Hands-free recording. Tap `fn` once more (or click the stop button on the pill) to finish. Stops by itself after 5 minutes. |
+| Tap right `⌘` | Hands-free recording. Tap right `⌘` again (or click the stop button on the pill) to finish. Stops by itself after 5 minutes. Set this key, or turn it off, in Settings. |
+| Double-tap `fn` | Hands-free recording too. Tap `fn` once more to finish. |
 | `1`-`9` while recording | Picks which pipe to run on this dictation. `0` pastes the raw transcript. You can also click the chips next to the pill. |
 | Select text, tap right `⌥` | Opens the transform picker. Press a number, use `↑` `↓` and Return, or click a pipe to rewrite the selection in place. |
 | Select text, tap right `⌥`, then hold `fn` | Dictate your own instruction ("make this friendlier", "translate to Spanish") and it gets applied to the selection. Or pick "Speak an instruction" in the picker: it records hands-free until you tap `fn`, press Return or click stop. Esc cancels. |
@@ -101,6 +102,7 @@ Talky watches the folder, so saving `config.json` in an editor applies immediate
   "enabled": true,
   "hotkey": "fn",                     // hold to talk, double-tap for hands-free
   "transformHotkey": "right_option",  // tap with text selected
+  "handsFreeHotkey": "right_command", // tap to start hands-free, tap again to stop. "" turns it off
   "showPipesInPill": true,
   "transcription": {
     "model": "large-v3-turbo-q5_0",   // any whisper.cpp model name, or /abs/path/model.bin
@@ -126,14 +128,14 @@ Talky watches the folder, so saving `config.json` in an editor applies immediate
 
 ### Hotkey names
 
-The easiest way to change a hotkey is in Settings, General. Click the Dictate or Transform selected text field and press the new keys: tap one modifier key by itself (`fn`, right `⌥`), or press a key with `⌃`, `⌥` or `⌘` (`⌃⌥Space`). Esc cancels. The menu beside each field has suggestions. Talky refuses a plain key or a `⇧`-only chord, because that key would stop typing in every app, and it refuses the key the other hotkey already uses.
+The easiest way to change a hotkey is in Settings, General. Click the Dictate, Hands-free or Transform selected text field and press the new keys: tap one modifier key by itself (`fn`, right `⌥`), or press a key with `⌃`, `⌥` or `⌘` (`⌃⌥Space`). Esc cancels. The menu beside each field has suggestions. Talky refuses a plain key or a `⇧`-only chord, because that key would stop typing in every app, and it refuses a key that another hotkey already uses. The Hands-free menu also has None, which turns that hotkey off.
 
 In `config.json`, a hotkey is either a single modifier or a chord.
 
 - Single modifiers: `fn`, `right_option`, `left_option`, `right_command`, `left_command`, `right_control`, `left_control`, `right_shift`, `left_shift`. The left and right versions are told apart.
 - Chords: modifiers `cmd`, `ctrl`, `opt`, `shift` joined with `+` and a key: `ctrl+opt+space`, `cmd+shift+d`, `f13`. Talky swallows chord hotkeys so they don't type anything.
 
-The transform hotkey fires on a clean tap only. Holding right `⌥` to type `ø` or `™` won't open the picker.
+The transform and hands-free hotkeys fire on a clean tap only. Holding right `⌥` to type `ø` or `™` won't open the picker, and right `⌘` still works for shortcuts like `⌘C`. A chord fires when its key comes up.
 
 ### Speech model
 

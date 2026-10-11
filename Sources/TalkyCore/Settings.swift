@@ -117,6 +117,7 @@ struct GeneralTab: View {
     /// Suggestions in the shortcut menus. The first one is the default.
     static let mainHotkeys = ["fn", "right_option", "right_command", "right_control", "ctrl+opt+space", "f13"]
     static let transformHotkeys = ["right_option", "right_command", "right_control", "ctrl+opt+t", "f14"]
+    static let handsFreeHotkeys = ["right_command", "right_option", "right_control", "ctrl+opt+h", "f15"]
     static let languages = [("auto", "Detect automatically"), ("en", "English"), ("he", "Hebrew"), ("es", "Spanish"),
                             ("fr", "French"), ("de", "German"), ("it", "Italian"), ("pt", "Portuguese"),
                             ("ru", "Russian"), ("ar", "Arabic"), ("zh", "Chinese"), ("ja", "Japanese")]
@@ -138,10 +139,16 @@ struct GeneralTab: View {
                         PermissionRows(state: permissions).padding(.vertical, 8)
                     }
                 }
-                SettingsGroup("Dictation") {
+                SettingsGroup("Dictation", footer: "Dictate: hold to talk, let go to type. Hands-free: tap to start, "
+                                  + "tap again to stop. Tapping the Dictate key twice also starts hands-free.") {
                     SettingsRow("Dictate") {
                         HotkeyField(title: "Dictate", hotkey: $store.config.hotkey, suggestions: Self.mainHotkeys,
-                                    otherTitle: "Transform selected text", otherHotkey: store.config.transformHotkey)
+                                    others: hotkeys(except: \.hotkey))
+                    }
+                    Divider()
+                    SettingsRow("Hands-free") {
+                        HotkeyField(title: "Hands-free", hotkey: $store.config.handsFreeHotkey, suggestions: Self.handsFreeHotkeys,
+                                    others: hotkeys(except: \.handsFreeHotkey), allowsNone: true)
                     }
                     Divider()
                     SettingsRow("Language") { choicePicker("Language", $store.config.transcription.language, Self.languages) }
@@ -190,7 +197,7 @@ struct GeneralTab: View {
             Divider()
             SettingsRow("Transform selected text") {
                 HotkeyField(title: "Transform selected text", hotkey: $store.config.transformHotkey,
-                            suggestions: Self.transformHotkeys, otherTitle: "Dictate", otherHotkey: store.config.hotkey)
+                            suggestions: Self.transformHotkeys, others: hotkeys(except: \.transformHotkey))
                     .disabled(!on)
             }
         }
@@ -220,6 +227,13 @@ struct GeneralTab: View {
                 Button("Uninstall Talky…", role: .destructive) { Uninstaller.confirmAndRun() }
             }
         }
+    }
+
+    /// Every Talky hotkey but one, so its field can refuse a key another hotkey uses.
+    func hotkeys(except own: KeyPath<Config, String>) -> [HotkeyField.Other] {
+        let all: [(KeyPath<Config, String>, String)] = [(\.hotkey, "Dictate"), (\.handsFreeHotkey, "Hands-free"),
+                                                        (\.transformHotkey, "Transform selected text")]
+        return all.filter { $0.0 != own }.map { HotkeyField.Other(title: $0.1, hotkey: store.config[keyPath: $0.0]) }
     }
 
     /// A picker over fixed choices that still shows a hand-edited value from config.json.
