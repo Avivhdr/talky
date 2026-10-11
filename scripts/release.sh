@@ -1,10 +1,19 @@
 #!/bin/bash
 # Builds, signs, notarizes and publishes a Talky release.
 #
-# Bump CFBundleShortVersionString in Resources/Info.plist first. This script bumps CFBundleVersion
-# (the number Sparkle compares), builds a universal Developer ID app, notarizes it, writes the
-# update zip, appcast and DMG into web/, commits, pushes (Vercel project "usetalky"
-# deploys web/) and creates a GitHub release.
+#   scripts/release.sh            build, sign, notarize and publish to $TALKY_SITE
+#   scripts/release.sh --dry-run  build, sign and notarize into dist/web-preview; commit and publish nothing
+#
+# Bump CFBundleShortVersionString in Resources/Info.plist first, and leave the bump uncommitted.
+# This script bumps CFBundleVersion (the number Sparkle compares), builds a universal Developer ID
+# app, notarizes it, writes the update zip, appcast and DMG into web/, commits both version halves
+# in one commit, pushes (Vercel project "usetalky" deploys web/) and creates a GitHub release.
+#
+# Where updates live: the GitHub repo is private, so its release assets 404 for Sparkle. The feed
+# and the binaries ride the website instead. The GitHub release is only an archive.
+#   Feed (built into every copy, never move it):  $TALKY_SITE/appcast.xml
+#   Update zip (named by the feed, can move):     $TALKY_SITE/downloads/Talky-<version>.zip
+#   First install (the website links it):        $TALKY_SITE/downloads/Talky-latest.dmg
 #
 # One-time setup on the release Mac:
 #   - A "Developer ID Application" certificate in the login Keychain (Xcode › Settings › Accounts).
@@ -25,12 +34,24 @@ NOTARY_PROFILE="${NOTARY_PROFILE:-talky-notary}"
 SPARKLE_BIN=.build/artifacts/sparkle/Sparkle/bin
 INFO=Resources/Info.plist
 
+DRY_RUN=false
+[ "${1:-}" = "--dry-run" ] && DRY_RUN=true
+# A dry run stages into dist/ and leaves the working tree as it found it, so the real run after it
+# starts clean.
+if $DRY_RUN; then PUBLISH=dist/web-preview; else PUBLISH=web; fi
+
 die() { echo "error: $*" >&2; exit 1; }
 
-# Preflight
+# Preflight. Publishing is a commit on main, so unrelated work must not ride along. The version
+# bump in Info.plist is the exception: it is the first step of a release, and it goes into the
+# release commit with the build number.
 [[ "$TALKY_SITE" == *example.com* ]] && die "set TALKY_SITE to your domain"
-[ "$(git branch --show-current)" = main ] || die "release from main"
-[ -z "$(git status --porcelain)" ] || die "commit or stash your changes first"
+if ! $DRY_RUN; then
+  [ "$(git branch --show-current)" = main ] || die "release from main"
+  UNRELATED="$(git status --porcelain | grep -vE "^( M|M |MM) $INFO\$" || true)"
+  [ -z "$UNRELATED" ] || die "commit or stash everything except the version bump first:
+$UNRELATED"
+fi
 command -v create-dmg >/dev/null || die "brew install create-dmg"
 xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 \
   || die "no notary profile \"$NOTARY_PROFILE\" (see the setup notes at the top of this script)"
@@ -40,14 +61,22 @@ IDENTITY="$(security find-identity -v -p codesigning | grep 'Developer ID Applic
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO")"
 TAG="v$VERSION"
-gh release view "$TAG" >/dev/null 2>&1 && die "$TAG already exists, bump CFBundleShortVersionString"
+if $DRY_RUN; then
+  echo "DRY RUN: nothing will be committed, pushed or published."
+else
+  gh release view "$TAG" >/dev/null 2>&1 && die "$TAG already exists, bump CFBundleShortVersionString"
+fi
 
-swift package resolve
+swift test
 "$SPARKLE_BIN/generate_keys" --account dev.talky.Talky >/dev/null   # creates the key on first run
 
-BUILD=$(( $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO") + 1 ))
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" "$INFO"
-echo "Releasing $VERSION (build $BUILD)"
+OLD_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO")"
+BUILD=$(( OLD_BUILD + 1 ))
+set_build() { /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $1" "$INFO"; }
+# The build number is compiled into the app, so a dry run sets it too, then puts it back, also on failure.
+$DRY_RUN && trap 'set_build "$OLD_BUILD"' EXIT
+set_build "$BUILD"
+echo "Releasing $VERSION (build $OLD_BUILD -> $BUILD)"
 
 TALKY_SIGN_IDENTITY="$IDENTITY" TALKY_FEED_URL="$TALKY_SITE/appcast.xml" TALKY_UNIVERSAL=1 \
   scripts/build-app.sh
@@ -77,7 +106,7 @@ notarize() {
   xcrun stapler staple "$target"
 }
 
-rm -rf dist && mkdir -p dist/stage web/downloads
+rm -rf dist && mkdir -p dist/stage "$PUBLISH/downloads"
 notarize "$APP"
 spctl -a -vvv --type execute "$APP"
 
@@ -94,22 +123,44 @@ create-dmg --volname "Talky" --window-size 600 380 --icon-size 128 \
   --icon "Talky.app" 160 180 --hide-extension "Talky.app" --app-drop-link 440 180 \
   --codesign "$IDENTITY" --hdiutil-retries 20 --overwrite "$DMG" dist/dmg
 notarize "$DMG"
+spctl -a -t open --context context:primary-signature -v "$DMG"
 
-find web/downloads -name 'Talky-*' -delete
-cp "dist/stage/$ZIP" web/downloads/
-cp "$DMG" web/downloads/Talky-latest.dmg
-cp dist/stage/appcast.xml web/appcast.xml
+find "$PUBLISH/downloads" -name 'Talky-*' -delete
+cp "dist/stage/$ZIP" "$PUBLISH/downloads/"
+cp "$DMG" "$PUBLISH/downloads/Talky-latest.dmg"
+cp dist/stage/appcast.xml "$PUBLISH/appcast.xml"
+sed -e 's/^/    /' "$PUBLISH/appcast.xml"
 
+if $DRY_RUN; then
+  echo "DRY RUN done. The build number is back to $OLD_BUILD. Check the files:"
+  ls -lh "$PUBLISH/appcast.xml" "$PUBLISH/downloads/"*
+  exit 0
+fi
+
+# The push is the deploy: Vercel builds main and serves web/ at $TALKY_SITE.
 git add "$INFO" web
 git commit -m "release: $TAG (build $BUILD)"
 git push
 
 echo "Waiting for $TALKY_SITE to serve build $BUILD…"
+LIVE=false
 for _ in $(seq 60); do
-  curl -fsS "$TALKY_SITE/appcast.xml" 2>/dev/null | grep -q "<sparkle:version>$BUILD</sparkle:version>" && break
+  if curl -fsS --max-time 10 "$TALKY_SITE/appcast.xml" 2>/dev/null | grep -q "<sparkle:version>$BUILD</sparkle:version>"; then
+    LIVE=true; break
+  fi
   sleep 5
 done
-curl -fsSI "$TALKY_SITE/downloads/$ZIP" >/dev/null || die "$TALKY_SITE/downloads/$ZIP is not reachable yet"
+$LIVE || die "the feed did not serve build $BUILD within 5 minutes. Check the Vercel deploy, then create the GitHub release by hand"
+
+# Sparkle checks the length in the feed against the bytes it downloads, and drops the update in
+# silence when they differ.
+EXPECTED="$(grep -Eo 'length="[0-9]+"' web/appcast.xml | head -1 | grep -Eo '[0-9]+')"
+SERVED="$(curl -fsSL --max-time 120 "$TALKY_SITE/downloads/$ZIP" | wc -c | tr -d ' ')"
+[ "$SERVED" = "$EXPECTED" ] || die "$TALKY_SITE/downloads/$ZIP has $SERVED bytes, the feed says $EXPECTED"
+echo "Feed is live. The update zip is $SERVED bytes, as the feed says."
 
 gh release create "$TAG" "web/downloads/$ZIP" "$DMG" --title "Talky $VERSION" --generate-notes
-echo "Released $TAG"
+echo "Released $TAG (build $BUILD)"
+echo "  Feed:     $TALKY_SITE/appcast.xml"
+echo "  Update:   $TALKY_SITE/downloads/$ZIP"
+echo "  Download: $TALKY_SITE/downloads/Talky-latest.dmg"
