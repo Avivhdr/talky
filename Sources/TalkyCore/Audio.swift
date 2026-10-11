@@ -102,30 +102,3 @@ public final class AudioRecorder: @unchecked Sendable {
         self.engine = nil
     }
 }
-
-public enum WAV {
-    /// 16-bit PCM mono WAV.
-    public static func data(samples: [Float], sampleRate: Int = 16_000) -> Data {
-        var d = Data()
-        let dataSize = UInt32(samples.count * 2)
-        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        d.append(contentsOf: Array("RIFF".utf8)); u32(36 + dataSize)
-        d.append(contentsOf: Array("WAVE".utf8))
-        d.append(contentsOf: Array("fmt ".utf8)); u32(16); u16(1); u16(1)
-        u32(UInt32(sampleRate)); u32(UInt32(sampleRate * 2)); u16(2); u16(16)
-        d.append(contentsOf: Array("data".utf8)); u32(dataSize)
-        d.reserveCapacity(d.count + Int(dataSize))
-        for s in samples {
-            let v = Int16(max(-1, min(1, s)) * Float(Int16.max))
-            withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) }
-        }
-        return d
-    }
-
-    public static func writeTemp(samples: [Float]) throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("talky-\(UUID().uuidString).wav")
-        try data(samples: samples).write(to: url)
-        return url
-    }
-}

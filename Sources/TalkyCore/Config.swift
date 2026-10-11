@@ -92,21 +92,12 @@ public struct Config: Codable, Equatable {
     public var clipboard = Clipboard()
     public var handsFree = HandsFree()
 
-    public struct Transcription: Codable, Equatable {
-        /// auto | local | groq | openai. "auto" uses Groq, then OpenAI, then local, depending on which keys exist.
-        public var backend = "auto"
-        /// small | small.en | medium | medium.en | an absolute path to a ggml model file.
-        public var localModel = "small"
+    public struct Transcription: Codable, Equatable, Sendable {
+        /// A whisper.cpp model name (large-v3-turbo-q5_0, small, medium, ...), downloaded into
+        /// ~/.config/talky/models, or an absolute path to a ggml model file.
+        public var model = "large-v3-turbo-q5_0"
         /// Whisper language code ("en", "he", ...) or "auto".
         public var language = "auto"
-        /// Keep a whisper-server process warm so local transcription skips the model load.
-        public var useWhisperServer = true
-        public var whisperCliPath: String? = nil
-        public var whisperServerPath: String? = nil
-        public var groqModel = "whisper-large-v3-turbo"
-        public var openaiModel = "whisper-1"
-        /// If a cloud request fails (offline, rate limit), retry with the local model.
-        public var fallbackToLocal = true
         /// Names and jargon passed to Whisper as a prompt to bias spelling.
         public var vocabulary = ""
     }
@@ -187,6 +178,9 @@ public final class ConfigStore: ObservableObject {
             let c = try Config.decode(merging: data)
             if c != config { config = c }
             loadError = nil
+            // Rewrite the file when it differs from what Talky would write: this drops settings that
+            // older versions wrote and adds new settings with their defaults.
+            if let canonical = try? c.encoded(), canonical != data { save() }
         } catch {
             // Keep the last good config so a typo in the file doesn't kill the hotkey.
             loadError = "config.json: \(error.localizedDescription)"

@@ -74,6 +74,8 @@ public enum HotkeySpec: Equatable {
     }
 }
 
+public enum PickerKey { case up, down, choose }
+
 @MainActor
 public protocol KeyMonitorDelegate: AnyObject {
     var hotkeysEnabled: Bool { get }
@@ -83,6 +85,9 @@ public protocol KeyMonitorDelegate: AnyObject {
     func escapePressed()
     /// Return true to swallow the key so the digit doesn't reach the focused app.
     func digitPressed(_ n: Int) -> Bool
+    /// ↑, ↓ or Return. Return true to swallow the key: the transform picker uses them while it is open,
+    /// and Return also finishes a hands-free spoken instruction.
+    func pickerKeyPressed(_ key: PickerKey) -> Bool
     /// Any other key while the main modifier hotkey is held (e.g. fn+arrow).
     func otherKeyWhileHeld()
 }
@@ -106,6 +111,8 @@ public final class KeyMonitor {
 
     static let digitCodes: [Int64: Int] = [29: 0, 18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9]
     static let escapeCode: Int64 = 53
+    /// ↑, ↓, Return and the keypad Enter.
+    static let pickerCodes: [Int64: PickerKey] = [126: .up, 125: .down, 36: .choose, 76: .choose]
 
     public init() {}
 
@@ -200,6 +207,18 @@ public final class KeyMonitor {
             }
             if code == Self.escapeCode {
                 async { $0.escapePressed() }
+                return false
+            }
+            if let key = Self.pickerCodes[code], flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty {
+                // A held key repeats. Arrows keep moving; a held Return must not reach the app once the picker closes.
+                if isRepeat, swallowedKeyUps.contains(code) {
+                    if key != .choose { _ = delegate.pickerKeyPressed(key) }
+                    return true
+                }
+                if !isRepeat, delegate.pickerKeyPressed(key) {
+                    swallowedKeyUps.insert(code)
+                    return true
+                }
                 return false
             }
             if let n = Self.digitCodes[code], flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty {

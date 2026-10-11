@@ -30,6 +30,8 @@ public final class Controller: KeyMonitorDelegate {
         didSet { if phase != oldValue { onPhaseChange?(phase) } }
     }
     public var onPhaseChange: ((Phase) -> Void)?
+    /// Called when the hotkey is pressed before Talky can record: no speech model, or no microphone access.
+    public var onNeedsSetup: (() -> Void)?
 
     private var mode: RecordingMode = .hold
     private var purpose: Purpose = .dictate
@@ -69,6 +71,7 @@ public final class Controller: KeyMonitorDelegate {
             ignoreNextMainUp = true
             finishRecording()
         case .idle, .picker:
+            if let problem = recordingProblem { return showRecordingProblem(problem) }
             let window = config.handsFree.doubleTapWindowMs / 1000
             downIsSecondTap = lastTapUpAt.map { now.timeIntervalSince($0) < window } ?? false
             lastTapUpAt = nil
@@ -166,6 +169,26 @@ public final class Controller: KeyMonitorDelegate {
         }
     }
 
+    public func pickerKeyPressed(_ key: PickerKey) -> Bool {
+        // "Speak an instruction" from the picker records hands-free. Return finishes it, as fn does,
+        // instead of reaching the app and replacing the selection with a new line.
+        if phase == .recording, mode == .handsFree, case .instruction = purpose, key == .choose {
+            finishRecording()
+            return true
+        }
+        guard phase == .picker else { return false }
+        let m = pill.model
+        let pipes = Array(pipeStore.pipes.prefix(9))
+        let rows = pipes.count + 1 // the pipes, then "Speak an instruction"
+        switch key {
+        case .up: m.highlighted = (m.highlighted - 1 + rows) % rows
+        case .down: m.highlighted = (m.highlighted + 1) % rows
+        case .choose:
+            if m.highlighted < pipes.count { runPipeOnSelection(pipes[m.highlighted]) } else { speakInstructionClicked() }
+        }
+        return true
+    }
+
     public func otherKeyWhileHeld() {
         guard phase == .recording, mode == .hold, let down = mainDownAt,
               Date().timeIntervalSince(down) < Self.chordGrace else { return }
@@ -176,6 +199,20 @@ public final class Controller: KeyMonitorDelegate {
     }
 
     // MARK: Recording
+
+    /// Why Talky can't record now, or nil when it can.
+    private var recordingProblem: String? { Permissions.microphoneProblem ?? SpeechModel.shared.blocker }
+
+    /// Says why Talky can't record, and starts the fix: the macOS prompt, or the window with the missing step.
+    private func showRecordingProblem(_ problem: String) {
+        pill.flash(problem, seconds: 2.5)
+        if Permissions.microphoneProblem != nil {
+            // macOS asks only the first time. After that, only System Settings can change the answer.
+            if Permissions.microphoneUndecided { Permissions.requestMicrophone() } else { onNeedsSetup?() }
+        } else if !SpeechModel.shared.isDownloading {
+            onNeedsSetup?()
+        }
+    }
 
     private func startRecording(mode: RecordingMode) {
         self.mode = mode
@@ -272,9 +309,7 @@ public final class Controller: KeyMonitorDelegate {
         work = Task { [weak self] in
             guard let self else { return }
             do {
-                let wav = try WAV.writeTemp(samples: rec.samples)
-                defer { try? FileManager.default.removeItem(at: wav) }
-                let transcript = try await transcription.transcribe(wav: wav, config: cfg.transcription)
+                let transcript = try await transcription.transcribe(samples: rec.samples, config: cfg.transcription)
                 try Task.checkCancellation()
                 guard !transcript.isEmpty else {
                     finish(message: "Didn't catch any speech")
@@ -308,6 +343,7 @@ public final class Controller: KeyMonitorDelegate {
                     let output = try await llm.transform(text: selection, instructions: transcript, config: cfg.llm)
                     try Task.checkCancellation()
                     TextIO.insert(output, restorePrevious: cfg.clipboard.restorePrevious, restoreDelayMs: cfg.clipboard.restoreDelayMs)
+                    NotificationCenter.default.post(name: .talkySelectionTransformed, object: nil)
                     finish(message: nil)
                 }
             } catch {
@@ -332,6 +368,7 @@ public final class Controller: KeyMonitorDelegate {
         m.pipes = pipeStore.pipes
         m.hotkeyLabel = HotkeySpec.label(config.hotkey)
         m.selectionPreview = selection.replacingOccurrences(of: "\n", with: " ")
+        m.highlighted = 0
         pill.show(.picker)
     }
 
@@ -344,6 +381,11 @@ public final class Controller: KeyMonitorDelegate {
 
     private func speakInstructionClicked() {
         guard phase == .picker, let sel = pickerSelection else { return }
+        if let problem = recordingProblem {
+            closePicker()
+            showRecordingProblem(problem)
+            return
+        }
         purpose = .instruction(sel)
         // A click can't be "held", so go straight to hands-free; tap the hotkey or the stop button to finish.
         startRecording(mode: .handsFree)
@@ -361,6 +403,7 @@ public final class Controller: KeyMonitorDelegate {
                 let output = try await llm.transform(text: selection, instructions: pipe.prompt, config: cfg.llm)
                 try Task.checkCancellation()
                 TextIO.insert(output, restorePrevious: cfg.clipboard.restorePrevious, restoreDelayMs: cfg.clipboard.restoreDelayMs)
+                NotificationCenter.default.post(name: .talkySelectionTransformed, object: nil)
                 finish(message: nil)
             } catch {
                 if Task.isCancelled { return }
@@ -368,4 +411,9 @@ public final class Controller: KeyMonitorDelegate {
             }
         }
     }
+}
+
+extension Notification.Name {
+    /// Posted after a pipe or a spoken instruction replaced the selected text.
+    static let talkySelectionTransformed = Notification.Name("TalkySelectionTransformed")
 }

@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-10T15:29:27.971Z",
+        "reason": "model decision: decision-round sketch; the console holds a text field and VU meter as depicted objects, not nested cards; never ships"
+      },
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-10T15:29:27.998Z",
+        "reason": "model decision: decision-round sketch; a window drawn inside a desktop screenshot, not nested cards; never ships"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          "web/index.html"
+        ],
+        "createdAt": "2026-10-10T19:43:57.871Z",
+        "reason": "user chose the Liquid Glass direction from a preview showing this color field; the soft violet/peach/blue radial light is the world's ground per the direction contract, not an accent glow"
+      }
+    ]
+  }
+}

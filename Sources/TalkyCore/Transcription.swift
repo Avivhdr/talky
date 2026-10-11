@@ -1,71 +1,82 @@
 import Foundation
+import whisper
 
-public enum Backend: Equatable {
-    case local
-    case groq(key: String)
-    case openai(key: String)
-
-    public var label: String {
-        switch self {
-        case .local: return "Local whisper.cpp"
-        case .groq: return "Groq Whisper"
-        case .openai: return "OpenAI Whisper"
-        }
-    }
-}
-
+/// Turns speech into text on this Mac with whisper.cpp, which ships inside Talky.
+/// The model loads once and stays in memory, so a dictation costs only inference time.
 public final class TranscriptionService: @unchecked Sendable {
-    public let local = LocalWhisper()
+    /// A whisper.cpp context is not thread safe. `context` and `contextModel` are only used on this queue.
+    private let queue = DispatchQueue(label: "dev.talky.whisper", qos: .userInitiated)
+    private var context: OpaquePointer?
+    private var contextModel: URL?
 
-    public init() {}
-
-    public static func plan(_ c: Config.Transcription) throws -> Backend {
-        let groq = Env.value("GROQ_API_KEY")
-        let openai = Env.value("OPENAI_API_KEY")
-        switch c.backend.lowercased() {
-        case "local": return .local
-        case "groq":
-            guard let groq else { throw TalkyError("backend is \"groq\" but GROQ_API_KEY is missing") }
-            return .groq(key: groq)
-        case "openai":
-            guard let openai else { throw TalkyError("backend is \"openai\" but OPENAI_API_KEY is missing") }
-            return .openai(key: openai)
-        default:
-            if let groq { return .groq(key: groq) }
-            if let openai { return .openai(key: openai) }
-            return .local
-        }
+    public init() {
+        // whisper.cpp logs every model load and decode to stderr.
+        whisper_log_set({ _, _, _ in }, nil)
     }
 
-    /// Starts whisper-server ahead of time when local transcription is the plan.
+    /// Loads the model ahead of the first dictation. Does nothing until the model is downloaded.
     public func prewarm(_ c: Config.Transcription) {
-        guard (try? Self.plan(c)) == .local, c.useWhisperServer else {
-            Task { await local.stopServer() }
-            return
-        }
-        Task { _ = await local.ensureServer(c) }
+        queue.async { _ = try? self.loadContext(c) }
     }
 
-    public func transcribe(wav: URL, config c: Config.Transcription) async throws -> String {
-        let backend = try Self.plan(c)
-        let text: String
-        switch backend {
-        case .local:
-            text = try await local.transcribe(wav: wav, config: c)
-        case .groq(let key), .openai(let key):
-            let isGroq = { if case .groq = backend { return true } else { return false } }()
-            let api = CloudWhisper(
-                endpoint: URL(string: isGroq
-                    ? "https://api.groq.com/openai/v1/audio/transcriptions"
-                    : "https://api.openai.com/v1/audio/transcriptions")!,
-                apiKey: key,
-                model: isGroq ? c.groqModel : c.openaiModel)
-            do {
-                text = try await api.transcribe(wav: wav, language: c.language, prompt: c.vocabulary)
-            } catch {
-                guard !Task.isCancelled, c.fallbackToLocal, local.modelURL(c) != nil else { throw error }
-                text = try await local.transcribe(wav: wav, config: c)
+    public func transcribe(samples: [Float], config c: Config.Transcription) async throws -> String {
+        let abort = AbortFlag()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { cont in
+                queue.async { cont.resume(with: Result { try self.run(samples, c, abort) }) }
             }
+        } onCancel: {
+            abort.set()
+        }
+    }
+
+    private func loadContext(_ c: Config.Transcription) throws -> OpaquePointer {
+        let url = SpeechModel.url(for: c.model)
+        if let context, contextModel == url { return context }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw TalkyError("The speech model isn't downloaded yet. Download it in Talky Settings.")
+        }
+        if let context { whisper_free(context) }
+        context = nil
+        contextModel = nil
+        guard let ctx = whisper_init_from_file_with_params(url.path, whisper_context_default_params()) else {
+            throw TalkyError("Talky couldn't load the speech model. Download it again in Settings.")
+        }
+        context = ctx
+        contextModel = url
+        return ctx
+    }
+
+    private func run(_ samples: [Float], _ c: Config.Transcription, _ abort: AbortFlag) throws -> String {
+        let ctx = try loadContext(c)
+        var p = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
+        p.print_progress = false
+        p.print_realtime = false
+        p.print_timestamps = false
+        p.print_special = false
+        p.no_timestamps = true
+        p.no_context = true
+        p.n_threads = Int32(max(4, ProcessInfo.processInfo.activeProcessorCount / 2))
+        p.abort_callback = { data in
+            guard let data else { return false }
+            return Unmanaged<AbortFlag>.fromOpaque(data).takeUnretainedValue().isSet
+        }
+        p.abort_callback_user_data = Unmanaged.passUnretained(abort).toOpaque()
+
+        let language = c.language.isEmpty ? "auto" : c.language
+        let status = language.withCString { lang in
+            c.vocabulary.withCString { vocabulary in
+                p.language = lang
+                p.initial_prompt = c.vocabulary.isEmpty ? nil : vocabulary
+                return samples.withUnsafeBufferPointer { whisper_full(ctx, p, $0.baseAddress, Int32($0.count)) }
+            }
+        }
+        if abort.isSet { throw CancellationError() }
+        guard status == 0 else { throw TalkyError("Transcription failed (whisper.cpp error \(status))") }
+
+        var text = ""
+        for i in 0..<whisper_full_n_segments(ctx) {
+            if let segment = whisper_full_get_segment_text(ctx, i) { text += String(cString: segment) }
         }
         return Self.cleanTranscript(text)
     }
@@ -81,226 +92,147 @@ public final class TranscriptionService: @unchecked Sendable {
     }
 }
 
-// MARK: - Cloud (OpenAI-compatible /audio/transcriptions)
-
-struct CloudWhisper {
-    let endpoint: URL
-    let apiKey: String
-    let model: String
-
-    func transcribe(wav: URL, language: String, prompt: String) async throws -> String {
-        var form = MultipartForm()
-        form.addField("model", model)
-        form.addField("response_format", "json")
-        form.addField("temperature", "0")
-        if language.lowercased() != "auto", !language.isEmpty { form.addField("language", language) }
-        if !prompt.isEmpty { form.addField("prompt", prompt) }
-        form.addFile("file", filename: "audio.wav", mime: "audio/wav", data: try Data(contentsOf: wav))
-
-        var req = URLRequest(url: endpoint)
-        req.httpMethod = "POST"
-        req.timeoutInterval = 60
-        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        req.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
-        let (data, resp) = try await URLSession.shared.upload(for: req, from: form.finish())
-        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-        guard status == 200 else {
-            let msg = (json["error"] as? [String: Any])?["message"] as? String ?? String(decoding: data.prefix(300), as: UTF8.self)
-            throw TalkyError("Transcription API \(status): \(msg)")
-        }
-        return json["text"] as? String ?? ""
-    }
+/// Set from the cancel handler, read by whisper.cpp between decode steps.
+private final class AbortFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    var isSet: Bool { lock.withLock { value } }
+    func set() { lock.withLock { value = true } }
 }
 
-struct MultipartForm {
-    let boundary = "talky-\(UUID().uuidString)"
-    private var body = Data()
+// MARK: - The model file
 
-    var contentType: String { "multipart/form-data; boundary=\(boundary)" }
+/// The Whisper model Talky needs for dictation, and its one-time download.
+@MainActor
+public final class SpeechModel: NSObject, ObservableObject {
+    public static let shared = SpeechModel()
 
-    mutating func addField(_ name: String, _ value: String) {
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+    public enum State: Equatable {
+        case missing
+        case downloading(received: Int64, total: Int64)
+        case ready
+        case failed(String)
     }
 
-    mutating func addFile(_ name: String, filename: String, mime: String, data: Data) {
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\nContent-Type: \(mime)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n".data(using: .utf8)!)
+    @Published public private(set) var state = State.missing
+    /// The model name from config.json: "large-v3-turbo-q5_0", "small" and so on, or a path to a ggml file.
+    public private(set) var name = Config.Transcription().model
+    private var task: URLSessionDownloadTask?
+    private lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
+
+    /// Sizes for the label before a download starts. Other models show their size once it starts.
+    static let knownSizes: [String: Int64] = ["large-v3-turbo-q5_0": 574_041_195, "small": 487_601_967]
+
+    public nonisolated static func url(for name: String) -> URL {
+        if name.contains("/") { return URL(fileURLWithPath: (name as NSString).expandingTildeInPath) }
+        return Paths.modelsDir.appendingPathComponent("ggml-\(name).bin")
     }
 
-    func finish() -> Data {
-        var d = body
-        d.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        return d
-    }
-}
-
-// MARK: - Local whisper.cpp
-
-/// Runs whisper.cpp as a subprocess. Prefers a long-lived whisper-server (model stays in memory,
-/// so a transcription costs only inference time) and falls back to one-shot whisper-cli.
-public actor LocalWhisper {
-    private var server: Process?
-    private var serverPort = 0
-    private var serverModel: URL?
-    private var serverStarting: Task<Bool, Never>?
-
-    public init() {}
-
-    public nonisolated func modelURL(_ c: Config.Transcription) -> URL? {
-        let name = c.localModel
-        let url: URL
-        if name.contains("/") {
-            url = URL(fileURLWithPath: (name as NSString).expandingTildeInPath)
-        } else {
-            url = Paths.modelsDir.appendingPathComponent("ggml-\(name).bin")
-        }
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
-    }
-
-    public nonisolated static func findBinary(_ name: String, override: String?) -> String? {
-        var candidates: [String] = []
-        if let override, !override.isEmpty { candidates.append((override as NSString).expandingTildeInPath) }
-        candidates += ["/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)"]
-        let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
-        candidates += path.split(separator: ":").map { "\($0)/\(name)" }
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
-    }
-
-    public func transcribe(wav: URL, config c: Config.Transcription) async throws -> String {
-        guard let model = modelURL(c) else {
-            throw TalkyError("Whisper model \"\(c.localModel)\" not found. Run scripts/download-model.sh \(c.localModel)")
-        }
-        if c.useWhisperServer, await ensureServer(c) {
-            do {
-                return try await viaServer(wav: wav, c: c)
-            } catch {
-                if Task.isCancelled { throw error }
-                stopServer()   // fall through to the CLI and restart the server next time
-            }
-        }
-        return try await viaCLI(wav: wav, model: model, c: c)
-    }
-
-    public func ensureServer(_ c: Config.Transcription) async -> Bool {
-        guard let model = modelURL(c),
-              let bin = Self.findBinary("whisper-server", override: c.whisperServerPath) else { return false }
-        if let server, server.isRunning, serverModel == model { return true }
-        if let serverStarting { return await serverStarting.value }
-        stopServer()
-
-        let task = Task<Bool, Never> { await self.launchServer(bin: bin, model: model) }
-        serverStarting = task
-        let ok = await task.value
-        serverStarting = nil
-        return ok
-    }
-
-    private func launchServer(bin: String, model: URL) async -> Bool {
-        let port = Self.freePort()
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: bin)
-        p.arguments = ["-m", model.path, "--host", "127.0.0.1", "--port", String(port),
-                       "-t", String(max(4, ProcessInfo.processInfo.activeProcessorCount / 2))]
-        let log = Paths.logsDir.appendingPathComponent("whisper-server.log")
-        FileManager.default.createFile(atPath: log.path, contents: nil)
-        let handle = try? FileHandle(forWritingTo: log)
-        p.standardOutput = handle ?? FileHandle.nullDevice
-        p.standardError = handle ?? FileHandle.nullDevice
-        do { try p.run() } catch { return false }
-        server = p
-        serverPort = port
-        serverModel = model
-
-        // Model load takes a second or two; wait until the HTTP port answers.
-        let deadline = Date().addingTimeInterval(30)
-        while Date() < deadline {
-            guard p.isRunning else { break }
-            var req = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/")!)
-            req.timeoutInterval = 1
-            if let (_, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse) != nil {
-                return true
-            }
-            try? await Task.sleep(nanoseconds: 200_000_000)
-        }
-        stopServer()
+    public var isReady: Bool { state == .ready }
+    public var isDownloading: Bool {
+        if case .downloading = state { return true }
         return false
     }
-
-    public func stopServer() {
-        if let server, server.isRunning { server.terminate() }
-        server = nil
-        serverModel = nil
+    public var url: URL { Self.url(for: name) }
+    /// "Whisper large-v3 turbo" for the default model; other names as they are.
+    public var displayName: String {
+        name == "large-v3-turbo-q5_0" ? "Whisper large-v3 turbo" : "Whisper \(name)"
+    }
+    public var expectedSize: Int64? {
+        if case .downloading(_, let total) = state, total > 0 { return total }
+        return Self.knownSizes[name]
     }
 
-    private func viaServer(wav: URL, c: Config.Transcription) async throws -> String {
-        var form = MultipartForm()
-        form.addField("response_format", "json")
-        form.addField("temperature", "0.0")
-        form.addField("language", c.language.isEmpty ? "auto" : c.language)
-        if !c.vocabulary.isEmpty { form.addField("prompt", c.vocabulary) }
-        form.addFile("file", filename: "audio.wav", mime: "audio/wav", data: try Data(contentsOf: wav))
-        var req = URLRequest(url: URL(string: "http://127.0.0.1:\(serverPort)/inference")!)
-        req.httpMethod = "POST"
-        req.timeoutInterval = 300
-        req.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
-        let (data, resp) = try await URLSession.shared.upload(for: req, from: form.finish())
-        guard (resp as? HTTPURLResponse)?.statusCode == 200,
-              let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw TalkyError("whisper-server returned an error")
+    /// Why dictation can't start yet, in words for the pill. Nil when the model is ready.
+    public var blocker: String? {
+        switch state {
+        case .ready: return nil
+        case .downloading(let received, let total):
+            guard total > 0 else { return "Talky is still downloading its speech model" }
+            return "Talky is still downloading its speech model (\(Int(Double(received) / Double(total) * 100))%)"
+        case .missing, .failed: return "Talky needs its speech model first"
         }
-        return json["text"] as? String ?? ""
     }
 
-    private func viaCLI(wav: URL, model: URL, c: Config.Transcription) async throws -> String {
-        guard let bin = Self.findBinary("whisper-cli", override: c.whisperCliPath) else {
-            throw TalkyError("whisper-cli not found. Install with: brew install whisper-cpp")
-        }
-        let outBase = wav.deletingPathExtension().path
-        var args = ["-m", model.path, "-f", wav.path, "-nt", "-np", "-otxt", "-of", outBase,
-                    "-l", c.language.isEmpty ? "auto" : c.language,
-                    "-t", String(max(4, ProcessInfo.processInfo.activeProcessorCount / 2))]
-        if !c.vocabulary.isEmpty { args += ["--prompt", c.vocabulary] }
-
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: bin)
-        p.arguments = args
-        p.standardOutput = FileHandle.nullDevice
-        p.standardError = FileHandle.nullDevice
-
-        let status: Int32 = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { cont in
-                p.terminationHandler = { cont.resume(returning: $0.terminationStatus) }
-                do { try p.run() } catch { cont.resume(throwing: error) }
-            }
-        } onCancel: {
-            p.terminate()
-        }
-        try Task.checkCancellation()
-        let txt = URL(fileURLWithPath: outBase + ".txt")
-        defer { try? FileManager.default.removeItem(at: txt) }
-        guard status == 0, let text = try? String(contentsOf: txt, encoding: .utf8) else {
-            throw TalkyError("whisper-cli failed (exit \(status))")
-        }
-        return text
+    public func use(_ name: String) {
+        guard name != self.name else { return }
+        cancel()
+        self.name = name
+        refresh()
     }
 
-    static func freePort() -> Int {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
-        defer { close(fd) }
-        var addr = sockaddr_in()
-        addr.sin_family = sa_family_t(AF_INET)
-        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
-        addr.sin_port = 0
-        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
-        _ = withUnsafeMutablePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, len) }
+    public func refresh() {
+        if case .downloading = state { return }
+        state = FileManager.default.fileExists(atPath: url.path) ? .ready : .missing
+    }
+
+    public func download() {
+        if case .downloading = state { return }
+        guard !name.contains("/") else {
+            state = .failed("No model file at \(name)")
+            return
         }
-        _ = withUnsafeMutablePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &len) }
+        let source = URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-\(name).bin")!
+        state = .downloading(received: 0, total: Self.knownSizes[name] ?? 0)
+        let task = session.downloadTask(with: source)
+        self.task = task
+        task.resume()
+    }
+
+    public func cancel() {
+        task?.cancel()
+        task = nil
+        if case .downloading = state { state = .missing }
+    }
+
+    fileprivate func finish(_ task: URLSessionDownloadTask, file: URL) {
+        guard task == self.task else { return }
+        let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else {
+            state = .failed("The download failed (HTTP \(status)).")
+            return
         }
-        let port = Int(UInt16(bigEndian: addr.sin_port))
-        return port > 0 ? port : 8178
+        do {
+            Paths.ensure()
+            let fm = FileManager.default
+            try? fm.removeItem(at: url)
+            try fm.moveItem(at: file, to: url)
+            self.task = nil
+            state = .ready
+        } catch {
+            state = .failed("Talky couldn't save the model: \(error.localizedDescription)")
+        }
+    }
+
+    fileprivate func fail(_ task: URLSessionTask, _ error: Error) {
+        guard task == self.task else { return }
+        self.task = nil
+        if (error as? URLError)?.code == .cancelled { return }
+        state = .failed("The download stopped. Check your connection and try again.")
+    }
+
+    fileprivate func progress(_ task: URLSessionTask, received: Int64, total: Int64) {
+        guard task == self.task else { return }
+        state = .downloading(received: received, total: total > 0 ? total : (Self.knownSizes[name] ?? 0))
+    }
+}
+
+// The session delivers on the main queue, so each callback can step into the main actor.
+extension SpeechModel: URLSessionDownloadDelegate {
+    public nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                                       didFinishDownloadingTo location: URL) {
+        // The file is deleted when this method returns, so it has to move now.
+        MainActor.assumeIsolated { finish(downloadTask, file: location) }
+    }
+
+    public nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                                       didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                                       totalBytesExpectedToWrite: Int64) {
+        MainActor.assumeIsolated { progress(downloadTask, received: totalBytesWritten, total: totalBytesExpectedToWrite) }
+    }
+
+    public nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error else { return }
+        MainActor.assumeIsolated { fail(task, error) }
     }
 }

@@ -5,3 +5,8 @@ dist/
 *.xcodeproj
 .env
 .DS_Store
+# Impeccable working files: the hook cache, mocks, question rounds and review screenshots
+.impeccable/hook.cache.json
+.impeccable/mocks/
+.impeccable/questions/
+.impeccable/review/

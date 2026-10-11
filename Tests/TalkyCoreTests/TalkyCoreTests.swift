@@ -23,13 +23,29 @@ final class HotkeyTests: XCTestCase {
 
 final class ConfigTests: XCTestCase {
     func testPartialConfigKeepsDefaults() throws {
-        let json = #"{"hotkey": "right_command", "transcription": {"backend": "local"}}"#
+        let json = #"{"hotkey": "right_command", "transcription": {"language": "he"}}"#
         let c = try Config.decode(merging: Data(json.utf8))
         XCTAssertEqual(c.hotkey, "right_command")
-        XCTAssertEqual(c.transcription.backend, "local")
-        XCTAssertEqual(c.transcription.localModel, "small")
+        XCTAssertEqual(c.transcription.language, "he")
+        XCTAssertEqual(c.transcription.model, "large-v3-turbo-q5_0")
         XCTAssertEqual(c.handsFree.maxSeconds, 300)
         XCTAssertFalse(c.clipboard.restorePrevious)
+    }
+
+    func testKeyCheckVerdicts() {
+        XCTAssertEqual(KeyCheck.interpret(status: 200, body: Data()), .works)
+        if case .rejected = KeyCheck.interpret(status: 401, body: Data()) {} else { XCTFail("401 rejects the key") }
+        let forbidden = Data(#"{"type":"error","error":{"type":"permission_error","message":"Key disabled"}}"#.utf8)
+        XCTAssertEqual(KeyCheck.interpret(status: 403, body: forbidden), .rejected("Anthropic didn't accept this key: Key disabled"))
+        // Busy or down: the key may be good, so Talky keeps it.
+        for status in [429, 500, 529] {
+            if case .unreachable = KeyCheck.interpret(status: status, body: Data()) {} else { XCTFail("\(status) is not a verdict on the key") }
+        }
+    }
+
+    func testModelFileLocation() {
+        XCTAssertEqual(SpeechModel.url(for: "small").lastPathComponent, "ggml-small.bin")
+        XCTAssertEqual(SpeechModel.url(for: "/tmp/m.bin").path, "/tmp/m.bin")
     }
 
     func testRoundTrip() throws {
@@ -42,13 +58,13 @@ final class ConfigTests: XCTestCase {
         let env = Env.parse("""
         # comment
         export ANTHROPIC_API_KEY="sk-ant-123"
-        GROQ_API_KEY=gsk_abc # trailing comment
-        OPENAI_API_KEY='sk-x'
+        PLAIN=abc # trailing comment
+        SINGLE='sk-x'
         EMPTY=
         """)
         XCTAssertEqual(env["ANTHROPIC_API_KEY"], "sk-ant-123")
-        XCTAssertEqual(env["GROQ_API_KEY"], "gsk_abc")
-        XCTAssertEqual(env["OPENAI_API_KEY"], "sk-x")
+        XCTAssertEqual(env["PLAIN"], "abc")
+        XCTAssertEqual(env["SINGLE"], "sk-x")
         XCTAssertEqual(env["EMPTY"], "")
     }
 }
@@ -63,13 +79,6 @@ final class TextTests: XCTestCase {
     func testLLMOutputCleanup() {
         XCTAssertEqual(AnthropicClient.clean("<text>\nhi there\n</text>"), "hi there")
     }
-
-    func testWAVHeader() {
-        let d = WAV.data(samples: [0, 0.5, -0.5, 1])
-        XCTAssertEqual(d.count, 44 + 8)
-        XCTAssertEqual(String(decoding: d.prefix(4), as: UTF8.self), "RIFF")
-        XCTAssertEqual(String(decoding: d[8..<12], as: UTF8.self), "WAVE")
-    }
 }
 
 final class EnvWriteTests: XCTestCase {
@@ -79,14 +88,14 @@ final class EnvWriteTests: XCTestCase {
         setenv("TALKY_CONFIG_DIR", dir.path, 1)
         defer { unsetenv("TALKY_CONFIG_DIR"); try? FileManager.default.removeItem(at: dir) }
 
-        try "# keys\nexport GROQ_API_KEY=old\nOTHER=1\n".write(to: Paths.envFile, atomically: true, encoding: .utf8)
-        Env.set("GROQ_API_KEY", " new ")
+        try "# keys\nexport FIRST_KEY=old\nOTHER=1\n".write(to: Paths.envFile, atomically: true, encoding: .utf8)
+        Env.set("FIRST_KEY", " new ")
         Env.set("ANTHROPIC_API_KEY", "sk-ant")
         XCTAssertEqual(try String(contentsOf: Paths.envFile, encoding: .utf8),
-                       "# keys\nGROQ_API_KEY=new\nOTHER=1\nANTHROPIC_API_KEY=sk-ant\n")
+                       "# keys\nFIRST_KEY=new\nOTHER=1\nANTHROPIC_API_KEY=sk-ant\n")
 
         Env.set("ANTHROPIC_API_KEY", "")
         XCTAssertNil(Env.value("ANTHROPIC_API_KEY"))
-        XCTAssertEqual(Env.value("GROQ_API_KEY"), "new")
+        XCTAssertEqual(Env.value("FIRST_KEY"), "new")
     }
 }

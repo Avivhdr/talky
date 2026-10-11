@@ -5,55 +5,457 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Talky: hold a key, talk, let go</title>
 <meta name="description" content="Menu bar dictation for macOS. Hold fn, talk, and the text appears wherever your cursor is.">
+<meta name="theme-color" content="#0B1A3A">
+<meta name="color-scheme" content="dark">
 <style>
-  :root { --ink: #1d1d1f; --muted: #6e6e73; --line: #e5e5ea; --accent: #2f6bff; --bg: #fbfbfd; }
-  @media (prefers-color-scheme: dark) {
-    :root { --ink: #f5f5f7; --muted: #a1a1a6; --line: #2c2c2e; --accent: #5b8cff; --bg: #111113; }
+  :root {
+    --navy: #0B1A3A;
+    --indigo: #141A4A;
+    --violet: #6B4BFF;
+    --blue: #1E5BFF;
+    --peach: #FF9A6B;
+    --ink: #FFFFFF;
+    --ink-2: rgba(255, 255, 255, .88);
+    --ink-3: rgba(255, 255, 255, .84);
+    --rim: rgba(255, 255, 255, .26);
+    --hair: rgba(255, 255, 255, .14);
+    --live: #FF453A;
+    --select: #0A84FF;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
-  main { max-width: 680px; margin: 0 auto; padding: 96px 24px 64px; }
-  h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 16px; }
-  h2 { font-size: 20px; margin: 56px 0 12px; }
-  p { margin: 0 0 12px; }
-  .lede { font-size: 21px; color: var(--muted); margin-bottom: 32px; }
-  .btn { display: inline-block; background: var(--accent); color: #fff; text-decoration: none;
-         padding: 12px 22px; border-radius: 12px; font-weight: 600; }
-  .fine { color: var(--muted); font-size: 14px; margin-top: 12px; }
-  kbd { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 6px;
-        border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; }
-  table { width: 100%; border-collapse: collapse; }
-  td { padding: 10px 0; border-top: 1px solid var(--line); vertical-align: top; }
-  td:first-child { width: 38%; padding-right: 16px; white-space: nowrap; }
-  footer { margin-top: 72px; color: var(--muted); font-size: 14px; }
-  a { color: var(--accent); }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; scrollbar-color: rgba(255, 255, 255, .28) var(--navy); }
+  body {
+    min-height: 100vh; background: var(--navy); color: var(--ink);
+    font: 18px/1.55 var(--font); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    overflow-x: hidden; caret-color: var(--select);
+  }
+  ::selection { background: var(--select); color: #fff; }
+  a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  /* The color field: one fixed ground every glass surface refracts. */
+  .field { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: linear-gradient(160deg, var(--navy) 0%, var(--indigo) 48%, #0A1230 100%); }
+  /* --glow dims the light once reading text scrolls over it (set by the script below). */
+  .field i { position: absolute; border-radius: 50%; will-change: transform; opacity: var(--glow, 1); }
+  .field .a { width: 64vw; height: 64vw; left: 52%; top: -22vw; background: radial-gradient(closest-side, rgba(107, 75, 255, .95), rgba(107, 75, 255, 0)); animation: drift-a 38s ease-in-out infinite alternate; }
+  .field .b { width: 56vw; height: 56vw; left: -16vw; top: 34vh; background: radial-gradient(closest-side, rgba(255, 154, 107, .85), rgba(255, 154, 107, 0)); animation: drift-b 46s ease-in-out infinite alternate; }
+  .field .c { width: 70vw; height: 70vw; left: 18vw; top: 70vh; background: radial-gradient(closest-side, rgba(30, 91, 255, .8), rgba(30, 91, 255, 0)); animation: drift-c 52s ease-in-out infinite alternate; }
+  @keyframes drift-a { to { transform: translate(-8vw, 10vh) scale(1.08); } }
+  @keyframes drift-b { to { transform: translate(10vw, -6vh) scale(.94); } }
+  @keyframes drift-c { to { transform: translate(-12vw, -14vh) scale(1.05); } }
+  @media (prefers-reduced-motion: reduce) { .field i { animation: none; } }
+
+  /* Glass: the one material. Deep glass carries reading text. */
+  .glass {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .19), rgba(255, 255, 255, .07));
+    -webkit-backdrop-filter: blur(28px) saturate(170%); backdrop-filter: blur(28px) saturate(170%);
+    border: 1px solid var(--rim);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .42), inset 0 -1px 0 rgba(255, 255, 255, .06), 0 24px 60px -24px rgba(0, 0, 0, .55);
+  }
+  .glass.deep { background: linear-gradient(180deg, rgba(26, 32, 76, .46), rgba(12, 18, 46, .42)); }
+
+  .wrap { width: min(1120px, 100% - 48px); margin-inline: auto; }
+
+  /* Navigation */
+  .nav { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10; height: 52px; border-radius: 9999px; padding: 0 7px 0 18px; display: flex; align-items: center; gap: 34px; font-size: 14px; white-space: nowrap; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 16px; text-decoration: none; letter-spacing: -.01em; }
+  .nav-links { display: flex; gap: 26px; }
+  .nav-links a { text-decoration: none; color: var(--ink-2); transition: color .2s; }
+  .nav-links a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 50px; padding: 0 24px; border-radius: 9999px; font: 600 17px/1 var(--font); text-decoration: none; cursor: pointer; border: 0; color: var(--ink); transition: transform .2s var(--ease-out), background-color .2s; -webkit-user-select: none; user-select: none; }
+  .btn:active { transform: scale(.97); }
+  .btn.solid { background: #fff; color: var(--navy); }
+  .btn.solid:hover { background: #EEF1FF; }
+  .btn.small { height: 38px; padding: 0 16px; border-radius: 9999px; font-size: 14px; }
+  .btn.glass:hover { background: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .1)); }
+  .btn.glass[aria-pressed="true"] { background: rgba(255, 255, 255, .3); }
+
+  kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 1.9em; height: 1.6em; padding: 0 .45em; border-radius: .42em; font: 600 .78em/1 var(--font);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .1)); border: 1px solid var(--rim); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 2px 6px -2px rgba(0, 0, 0, .35); vertical-align: .08em; }
+
+  /* Hero */
+  .hero { min-height: 100svh; padding: 132px 0 72px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  h1 { font-size: clamp(46px, 7vw, 88px); line-height: 1; letter-spacing: -.035em; font-weight: 700; text-wrap: balance; }
+  .lede { font-size: clamp(18px, 1.8vw, 22px); color: var(--ink-2); margin-top: 20px; max-width: 34em; letter-spacing: -.01em; text-wrap: balance; }
+  .ctas { display: flex; gap: 14px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+  .fine { font-size: 14px; color: var(--ink-3); margin-top: 16px; }
+
+  .stage { position: relative; width: min(820px, 100%); margin-top: 64px; }
+  .window { border-radius: 22px; overflow: hidden; text-align: left; }
+  /* Full 0.46 fill only behind the text; below it the color field shows through. */
+  .window.glass.deep { background: linear-gradient(180deg, rgba(26, 32, 76, .46) 0%, rgba(22, 28, 68, .42) 55%, rgba(12, 18, 46, .14) 100%); }
+  .titlebar { height: 44px; display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--hair); position: relative; }
+  .titlebar b { width: 12px; height: 12px; border-radius: 50%; }
+  .titlebar span { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; line-height: 1.2; font-size: 13px; font-weight: 600; color: var(--ink-2); pointer-events: none; }
+  .doc { min-height: 196px; padding: 26px 32px 30px; font-size: clamp(19px, 2.2vw, 26px); line-height: 1.45; letter-spacing: -.01em; white-space: pre-line; }
+  .doc .placeholder { color: var(--ink-3); }
+  .doc .w { display: inline; transition: opacity .35s, color .35s; }
+  .doc .w.filler.struck { color: var(--ink-3); text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, .6); }
+  .doc .w.filler.gone { opacity: 0; }
+  .doc .out { display: inline; animation: settle .5s var(--ease-out); }
+  @keyframes settle { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+  .caret { display: inline-block; width: 2.5px; height: 1.1em; margin-left: 2px; background: #fff; border-radius: 9999px; vertical-align: -.17em; animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .caret { animation: none; } .doc .out { animation: none; } }
+
+  .pillrow { display: flex; gap: 12px; justify-content: center; margin-top: 22px; flex-wrap: wrap; }
+  /* As wide as the Listening state, so the chips never move when the pill changes size. */
+  .pill-slot { width: 272px; display: flex; justify-content: flex-end; }
+  .pill { height: 56px; border-radius: 9999px; padding: 8px 22px 8px 18px; display: flex; align-items: center; gap: 14px; font-size: 16px; font-weight: 600; }
+  .pill .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, .5); transition: background-color .2s; flex: none; }
+  .pill[data-state="listening"] .dot { background: var(--live); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .pill .spin { display: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .3); border-top-color: #fff; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .pill[data-state="processing"] .dot { display: none; }
+  .pill[data-state="processing"] .spin { display: block; }
+  .pill .check { display: none; flex: none; }
+  .pill[data-state="done"] .dot { display: none; }
+  .pill[data-state="done"] .check { display: block; }
+  .wave { display: none; gap: 3px; align-items: center; height: 26px; }
+  .wave i { width: 3px; height: 4px; border-radius: 9999px; background: #fff; transition: height .09s linear; }
+  .pill[data-state="listening"] .wave { display: flex; }
+  .time { display: none; font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 500; min-width: 2.6em; }
+  .pill[data-state="listening"] .time { display: inline; }
+
+  .chips { height: 56px; border-radius: 9999px; padding: 6px; display: flex; gap: 4px; }
+  .chip { height: 44px; border-radius: 9999px; padding: 0 16px 0 8px; display: flex; gap: 9px; align-items: center; font: 500 15px/1 var(--font); color: var(--ink-2); background: transparent; border: 0; cursor: pointer; white-space: nowrap; transition: background-color .25s var(--ease-out), color .25s; }
+  .chip:hover { color: var(--ink); background: rgba(255, 255, 255, .08); }
+  .chip b { width: 26px; height: 26px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 13px; background: rgba(255, 255, 255, .16); color: #fff; transition: background-color .25s; }
+  .chip[aria-checked="true"] { background: rgba(255, 255, 255, .94); color: var(--navy); }
+  .chip[aria-checked="true"] b { background: var(--select); }
+  .demo-note { font-size: 14px; color: var(--ink-3); margin-top: 18px; }
+
+  /* Sections */
+  section.block { padding: 140px 0 0; }
+  h2 { font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; letter-spacing: -.03em; font-weight: 700; text-wrap: balance; }
+  .intro { font-size: 20px; color: var(--ink-2); margin-top: 18px; max-width: 36em; text-wrap: pretty; }
+
+  .keys { margin-top: 48px; border-radius: 24px; padding: 8px 32px; }
+  .keyrow { display: grid; grid-template-columns: minmax(220px, 34%) 1fr; gap: 24px; padding: 22px 0; align-items: baseline; }
+  .keyrow + .keyrow { border-top: 1px solid var(--hair); }
+  .keyrow dt { font-weight: 600; font-size: 18px; }
+  .keyrow dd { color: var(--ink-2); }
+
+  .pipes { margin-top: 48px; display: grid; grid-template-columns: 1fr 1.25fr; gap: 24px; align-items: stretch; }
+  .said, .result { border-radius: 24px; padding: 28px 30px; }
+  .label { font-size: 14px; font-weight: 600; color: var(--ink-3); letter-spacing: .01em; }
+  .said .quote { font-size: 22px; line-height: 1.45; margin-top: 12px; color: var(--ink-2); }
+  .result .chips { margin-top: 14px; display: inline-flex; flex-wrap: wrap; height: auto; border-radius: 9999px; }
+  .result .text { margin-top: 22px; font-size: 22px; line-height: 1.5; white-space: pre-line; min-height: 7.5em; }
+  .transform { margin-top: 24px; font-size: 17px; color: var(--ink-2); max-width: 46em; }
+
+  .facts { margin-top: 56px; display: grid; gap: 0; }
+  .fact { display: grid; grid-template-columns: minmax(240px, 40%) 1fr; gap: 24px; padding: 28px 0; border-top: 1px solid var(--hair); align-items: baseline; }
+  .fact:last-child { border-bottom: 1px solid var(--hair); }
+  .fact h3 { font-size: clamp(24px, 2.6vw, 32px); letter-spacing: -.02em; line-height: 1.15; font-weight: 700; }
+  .fact p { color: var(--ink-2); }
+  code { font: 500 .88em var(--mono); background: rgba(255, 255, 255, .12); padding: .12em .4em; border-radius: 6px; }
+
+  .needs { margin-top: 48px; border-radius: 24px; padding: 8px 32px; }
+
+  .close { padding: 160px 0 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  footer { padding: 120px 0 48px; display: flex; justify-content: space-between; gap: 24px; font-size: 14px; color: var(--ink-3); flex-wrap: wrap; }
+  footer a { color: var(--ink-2); }
+
+  @media (max-width: 760px) {
+    body { font-size: 17px; }
+    /* On phones the peach light sits behind the Notes window, not behind the small print above it. */
+    .field .b { top: 60vh; }
+    .nav { gap: 16px; padding-left: 16px; width: calc(100% - 32px); justify-content: space-between; }
+    .nav-links { display: none; }
+    .hero { padding-top: 112px; }
+    .stage { margin-top: 44px; }
+    .doc { min-height: 170px; padding: 20px 20px 24px; }
+    .pill { height: 50px; font-size: 15px; }
+    .pill-slot { width: 100%; justify-content: center; }
+    .chips { height: 50px; }
+    .chip { height: 38px; padding: 0 12px 0 6px; font-size: 14px; }
+    .chip b { width: 24px; height: 24px; }
+    section.block { padding-top: 96px; }
+    .keys, .needs { padding: 4px 20px; }
+    .keyrow, .fact { grid-template-columns: 1fr; gap: 6px; }
+    .pipes { grid-template-columns: 1fr; }
+    .said, .result { padding: 22px 20px; }
+    .close { padding-top: 112px; }
+  }
+  @media (max-width: 440px) {
+    .chips, .result .chips { display: grid; grid-template-columns: 1fr 1fr; height: auto; width: 100%; border-radius: 24px; gap: 4px; }
+    .chip { justify-content: flex-start; border-radius: 9999px; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>Talky</h1>
-  <p class="lede">Hold <kbd>fn</kbd>, talk, let go. The text appears wherever your cursor is, with the "um"s taken out.</p>
-  <a class="btn" href="/downloads/Talky-latest.dmg">Download for macOS</a>
-  <p class="fine">macOS 14 or later, Apple silicon and Intel. Drag Talky into Applications. It updates itself.</p>
+<div class="field" aria-hidden="true"><i class="a"></i><i class="b"></i><i class="c"></i></div>
 
-  <h2>How it works</h2>
-  <table>
-    <tr><td>Hold <kbd>fn</kbd></td><td>Records while you hold it, pastes when you let go.</td></tr>
-    <tr><td>Double-tap <kbd>fn</kbd></td><td>Hands-free. Tap once more to stop.</td></tr>
-    <tr><td>Select text, tap right <kbd>⌥</kbd></td><td>Rewrites the selection: formal, bullets, or an instruction you say out loud.</td></tr>
-    <tr><td><kbd>Esc</kbd></td><td>Cancels.</td></tr>
-  </table>
+<nav class="nav glass" aria-label="Main">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="6.5" fill="#fff"/><path d="M7.5 8.5v5M11 6v10M14.5 9.5v3" stroke="#0B1A3A" stroke-width="1.9" stroke-linecap="round"/></svg>
+    Talky
+  </a>
+  <div class="nav-links"><a href="#how">How it works</a><a href="#pipes">Pipes</a><a href="#privacy">Privacy</a></div>
+  <a class="btn solid small" href="/downloads/Talky-latest.dmg">Download</a>
+</nav>
 
-  <h2>What you need</h2>
-  <p>A <a href="https://console.groq.com/keys">Groq API key</a> for transcription. The free tier covers normal dictation.</p>
-  <p>An <a href="https://console.anthropic.com/settings/keys">Anthropic API key</a> if you want cleanup and rewrites. Without one, Talky pastes exactly what you said.</p>
-  <p>Keys stay on your Mac in <code>~/.config/talky/.env</code>. Talky has no account and no telemetry. Audio goes to Groq, text goes to Anthropic, and nothing else leaves your machine.</p>
+<main id="top">
+  <header class="hero wrap">
+    <h1>Talk. Talky types.</h1>
+    <p class="lede">Hold <kbd>fn</kbd>, say it, let go. Clean text appears wherever your cursor is.</p>
+    <div class="ctas">
+      <a class="btn solid" href="/downloads/Talky-latest.dmg">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2.5v9m0 0 4-4m-4 4-4-4M3.5 15h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download for Mac
+      </a>
+      <button class="btn glass" id="hold" type="button" aria-pressed="false" aria-describedby="demo-note">Hold to try</button>
+    </div>
+    <p class="fine">Free · macOS 14 or later · Apple silicon and Intel · No account</p>
 
-  <h2>Uninstall</h2>
-  <p>Settings › Uninstall Talky. It turns off launch at login, clears its permissions, deletes its files and moves itself to the Trash.</p>
+    <div class="stage">
+      <div class="window glass deep">
+        <div class="titlebar"><b style="background:#FF5F57"></b><b style="background:#FEBC2E"></b><b style="background:#28C840"></b><span>Notes</span></div>
+        <div class="doc" id="doc" aria-live="polite"><span class="placeholder">Hold the button, or hold Space, and Talky types here.</span><span class="caret" aria-hidden="true"></span></div>
+      </div>
+      <div class="pillrow">
+        <div class="pill-slot"><div class="pill glass" id="pill" data-state="idle" role="status">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="spin" aria-hidden="true"></span>
+          <svg class="check" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="pill-label">Ready</span>
+          <span class="wave" id="wave" aria-hidden="true"></span>
+          <span class="time" id="time" aria-hidden="true">0:00</span>
+        </div></div>
+        <div class="chips glass" role="radiogroup" aria-label="Pipe for this dictation" data-chips="hero"></div>
+      </div>
+      <p class="demo-note" id="demo-note">A demo on this page. Nothing is recorded. Press 1, 2, 3 or 0 while you hold to pick a pipe.</p>
+    </div>
+  </header>
 
-  <footer><a href="https://github.com/Avivhdr/talky">Source on GitHub</a></footer>
+  <section class="block wrap" id="how" aria-labelledby="how-h">
+    <h2 id="how-h">One key. Any app.</h2>
+    <p class="intro">Talky lives in the menu bar. It watches only its own keys, so everything else still reaches the app you are typing in.</p>
+    <dl class="keys glass deep">
+      <div class="keyrow"><dt>Hold <kbd>fn</kbd></dt><dd>Records while you hold it. When you let go, it transcribes, cleans up and pastes.</dd></div>
+      <div class="keyrow"><dt>Double-tap <kbd>fn</kbd></dt><dd>Hands-free. Tap <kbd>fn</kbd> once more, or click stop on the pill, to finish. It stops by itself after five minutes.</dd></div>
+      <div class="keyrow"><dt><kbd>1</kbd>–<kbd>9</kbd> while recording</dt><dd>Picks the pipe for this dictation. <kbd>0</kbd> pastes exactly what you said.</dd></div>
+      <div class="keyrow"><dt>Select text, tap right <kbd>⌥</kbd></dt><dd>Rewrites the selection in place. Pick a pipe, or hold <kbd>fn</kbd> and say your own instruction.</dd></div>
+      <div class="keyrow"><dt><kbd>esc</kbd></dt><dd>Cancels a recording or a rewrite that is still running.</dd></div>
+    </dl>
+  </section>
+
+  <section class="block wrap" id="pipes" aria-labelledby="pipes-h">
+    <h2 id="pipes-h">Say it once. Pick how it lands.</h2>
+    <p class="intro">Pipes are optional. Add an Anthropic API key and Claude rewrites what you said before Talky types it. Talky comes with three, and you can write your own in Settings.</p>
+    <div class="pipes">
+      <div class="said glass deep">
+        <p class="label">You said</p>
+        <p class="quote">“um so can we move tomorrow’s standup to like eleven, the design review runs late”</p>
+      </div>
+      <div class="result glass deep">
+        <p class="label">Talky typed</p>
+        <div class="chips glass" role="radiogroup" aria-label="Pipe" data-chips="pipes"></div>
+        <p class="text" id="pipe-text" aria-live="polite"></p>
+      </div>
+    </div>
+    <p class="transform">Already wrote something? Select it, tap right <kbd>⌥</kbd>, and press a number. Or hold <kbd>fn</kbd> and say what you want, like “make this friendlier” or “translate to Spanish”.</p>
+  </section>
+
+  <section class="block wrap" id="privacy" aria-labelledby="privacy-h">
+    <h2 id="privacy-h">Your words stay yours.</h2>
+    <div class="facts">
+      <div class="fact"><h3>No account. No telemetry.</h3><p>Talky never asks who you are and sends nothing about how you use it.</p></div>
+      <div class="fact"><h3>Your voice stays on your Mac.</h3><p>Whisper turns speech into text on your Mac. Audio never leaves it, and dictation works offline.</p></div>
+      <div class="fact"><h3>You know where words go.</h3><p>Text goes to Anthropic only when a pipe runs. Without a key, nothing leaves your Mac at all.</p></div>
+      <div class="fact"><h3>Your key stays on your Mac.</h3><p>Your Anthropic API key lives in <code>~/.config/talky/.env</code> and nowhere else.</p></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="needs" aria-labelledby="needs-h">
+    <h2 id="needs-h">What you need</h2>
+    <dl class="needs glass deep">
+      <div class="keyrow"><dt>A Mac</dt><dd>macOS 14 or later, Apple silicon or Intel. Talky updates itself.</dd></div>
+      <div class="keyrow"><dt>574 MB of space</dt><dd>For the Whisper speech model. Talky downloads it once, during setup.</dd></div>
+      <div class="keyrow"><dt><a href="https://console.anthropic.com/settings/keys">An Anthropic API key</a></dt><dd>Optional, for pipes. Without it, Talky types exactly what you said.</dd></div>
+    </dl>
+  </section>
+
+  <section class="close wrap" aria-labelledby="close-h">
+    <h2 id="close-h">Ready when you are.</h2>
+    <p class="intro">Download, drag Talky into Applications, and hold <kbd>fn</kbd>.</p>
+    <div class="ctas"><a class="btn solid" href="/downloads/Talky-latest.dmg">Download for Mac</a></div>
+    <p class="fine">To remove it: Settings › Uninstall Talky. It turns off launch at login, clears its permissions, deletes its files and moves itself to the Trash.</p>
+  </section>
 </main>
+
+<footer class="wrap">
+  <span>Talky. Free and open source.</span>
+  <a href="https://github.com/Avivhdr/talky">Source on GitHub</a>
+</footer>
+
+<script>
+(() => {
+  const PIPES = [
+    { key: "1", id: "clean", name: "Clean", text: "Can we move tomorrow’s standup to 11:00? The design review runs late." },
+    { key: "2", id: "formal", name: "Formal", text: "Could we move tomorrow’s standup to 11:00? The design review is running late." },
+    { key: "3", id: "bullets", name: "Bullets", text: "• Move tomorrow’s standup to 11:00\n• The design review runs late" },
+    { key: "0", id: "raw", name: "Raw", text: "um so can we move tomorrow’s standup to like eleven, the design review runs late" },
+  ];
+  const RAW = "um so can we move tomorrow’s standup to like eleven, the design review runs late".split(" ");
+  const FILLERS = new Set([0, 1, 8]); // "um", "so", "like"
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const coarse = matchMedia("(pointer: coarse)").matches;
+
+  const $ = (s) => document.querySelector(s);
+  const doc = $("#doc"), pill = $("#pill"), label = $("#pill-label"), wave = $("#wave"), time = $("#time"), hold = $("#hold");
+  const pipeText = $("#pipe-text");
+  const groups = {};
+  let selected = "clean", pipesSelected = "clean";
+
+  function buildChips(el, name, onPick) {
+    groups[name] = el;
+    for (const p of PIPES) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.setAttribute("role", "radio"); b.dataset.pipe = p.id;
+      b.innerHTML = `<b>${p.key}</b>${p.name}`;
+      b.addEventListener("click", () => onPick(p.id));
+      el.appendChild(b);
+    }
+    el.addEventListener("keydown", (e) => {
+      if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+      e.preventDefault();
+      const ids = PIPES.map((p) => p.id);
+      const cur = ids.indexOf(name === "hero" ? selected : pipesSelected);
+      const next = ids[(cur + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : ids.length - 1)) % ids.length];
+      onPick(next);
+      el.querySelector(`[data-pipe="${next}"]`).focus();
+    });
+  }
+  function mark(name, id) {
+    groups[name].querySelectorAll(".chip").forEach((c) => {
+      const on = c.dataset.pipe === id;
+      c.setAttribute("aria-checked", String(on));
+      c.tabIndex = on ? 0 : -1;
+    });
+  }
+  const pipe = (id) => PIPES.find((p) => p.id === id);
+
+  // Pipes section: one dictation, every output.
+  buildChips(document.querySelector('[data-chips="pipes"]'), "pipes", (id) => { pipesSelected = id; mark("pipes", id); pipeText.textContent = pipe(id).text; });
+  mark("pipes", pipesSelected); pipeText.textContent = pipe(pipesSelected).text;
+
+  // Hero demo
+  for (let i = 0; i < 12; i++) wave.appendChild(document.createElement("i"));
+  buildChips(document.querySelector('[data-chips="hero"]'), "hero", (id) => {
+    selected = id; mark("hero", id);
+    if (state === "done" || state === "idle-after") showOutput(false);
+  });
+  mark("hero", selected);
+  if (coarse) hold.textContent = "Touch and hold to try";
+
+  let state = "idle", words = 0, t0 = 0, wordTimer = 0, waveTimer = 0, clockTimer = 0, autoplay = false, settleTimer = 0;
+
+  function setPill(s, text) { pill.dataset.state = s; label.textContent = text; }
+  function caret() { return '<span class="caret" aria-hidden="true"></span>'; }
+  function renderWords() {
+    doc.innerHTML = RAW.slice(0, words).map((w, i) => `<span class="w${FILLERS.has(i) ? " filler" : ""}">${w}</span>`).join(" ") + caret();
+  }
+  function showOutput(animate) {
+    doc.innerHTML = `<span class="out">${pipe(selected).text}</span>` + caret();
+    if (!animate) doc.querySelector(".out").style.animation = "none";
+  }
+
+  function start(isAuto) {
+    if (state === "listening") return;
+    clearTimeout(settleTimer);
+    autoplay = !!isAuto;
+    state = "listening"; words = 0; t0 = performance.now();
+    hold.setAttribute("aria-pressed", "true");
+    setPill("listening", "Listening");
+    renderWords();
+    const step = reduced ? 0 : 190;
+    if (reduced) { words = RAW.length; renderWords(); }
+    else wordTimer = setInterval(() => {
+      if (words < RAW.length) { words++; renderWords(); }
+      else if (autoplay) stop();
+    }, step);
+    waveTimer = setInterval(() => {
+      wave.querySelectorAll("i").forEach((b, i) => {
+        const shape = 1 - Math.abs(i - 5.5) / 7;
+        b.style.height = reduced ? "12px" : `${4 + Math.round(22 * shape * (.35 + Math.random() * .65))}px`;
+      });
+    }, 90);
+    clockTimer = setInterval(() => {
+      const s = Math.floor((performance.now() - t0) / 1000);
+      time.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    }, 250);
+    time.textContent = "0:00";
+  }
+
+  function stop() {
+    if (state !== "listening") return;
+    clearInterval(wordTimer); clearInterval(waveTimer); clearInterval(clockTimer);
+    hold.setAttribute("aria-pressed", "false");
+    if (words === 0) { state = "idle"; setPill("idle", "Ready"); doc.innerHTML = '<span class="placeholder">Hold a little longer. Talky types while you hold.</span>' + caret(); return; }
+    words = RAW.length; renderWords();
+    state = "processing";
+    const p = pipe(selected);
+    setPill("processing", p.id === "raw" ? "Pasting" : p.name);
+    if (p.id !== "raw") doc.querySelectorAll(".filler").forEach((f) => f.classList.add("struck"));
+    const strikeFor = reduced ? 0 : 900, fadeFor = reduced ? 0 : 320;
+    settleTimer = setTimeout(() => {
+      doc.querySelectorAll(".filler").forEach((f) => { if (p.id !== "raw") f.classList.add("gone"); });
+      settleTimer = setTimeout(() => {
+        state = "done"; showOutput(!reduced); setPill("done", "Pasted");
+        settleTimer = setTimeout(() => { state = "idle-after"; setPill("idle", "Ready"); }, 1600);
+      }, fadeFor);
+    }, strikeFor);
+  }
+
+  hold.addEventListener("pointerdown", (e) => { e.preventDefault(); hold.setPointerCapture(e.pointerId); start(false); });
+  ["pointerup", "pointercancel"].forEach((ev) => hold.addEventListener(ev, () => stop()));
+  hold.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  const typing = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+  addEventListener("keydown", (e) => {
+    if (typing(document.activeElement)) return;
+    if (e.code === "Space") {
+      if (document.activeElement && document.activeElement !== hold && document.activeElement.tagName === "BUTTON") return;
+      e.preventDefault();
+      if (!e.repeat) start(false);
+      return;
+    }
+    if (state === "listening") {
+      const p = PIPES.find((x) => x.key === e.key);
+      if (p) { e.preventDefault(); selected = p.id; mark("hero", p.id); }
+    }
+    if (e.key === "Escape" && state === "listening") {
+      clearInterval(wordTimer); clearInterval(waveTimer); clearInterval(clockTimer);
+      state = "idle"; hold.setAttribute("aria-pressed", "false"); setPill("idle", "Cancelled");
+      doc.innerHTML = '<span class="placeholder">Cancelled. Nothing was typed.</span>' + caret();
+    }
+  });
+  addEventListener("keyup", (e) => { if (e.code === "Space") { e.preventDefault(); stop(); } });
+  addEventListener("blur", () => stop());
+
+  // Full light behind the first screen. Dimmed to 55% before section text scrolls in, so text on the
+  // open field keeps at least 4.5:1 over the brightest point of the peach and violet light.
+  const field = document.querySelector(".field");
+  let glowQueued = false;
+  const setGlow = () => {
+    glowQueued = false;
+    const t = Math.min(1, Math.max(0, scrollY / 160));
+    field.style.setProperty("--glow", (1 - 0.45 * t).toFixed(3));
+  };
+  addEventListener("scroll", () => { if (!glowQueued) { glowQueued = true; requestAnimationFrame(setGlow); } }, { passive: true });
+  setGlow();
+
+  // Show the mechanism once on arrival; any real input takes over.
+  if (!reduced) setTimeout(() => { if (state === "idle") start(true); }, 900);
+  else { state = "idle-after"; showOutput(false); }
+})();
+</script>
 </body>
 </html>

@@ -23,9 +23,11 @@ public final class SettingsWindowController {
             let visible = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1440, height: 900)
             let size = NSSize(width: min(1200, visible.width - 40), height: min(860, visible.height - 40))
             let w = NSWindow(contentRect: NSRect(origin: .zero, size: size),
-                             styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                              backing: .buffered, defer: false)
             w.title = "Talky Settings"
+            w.titlebarAppearsTransparent = true
+            w.titleVisibility = .hidden
             w.contentView = NSHostingView(rootView: view)
             w.isReleasedWhenClosed = false
             w.center()
@@ -39,6 +41,11 @@ public final class SettingsWindowController {
 
 public enum SettingsTab: Hashable { case general, pipes }
 
+/// Shared layout values so both Settings pages put their header band and content in the same column.
+enum SettingsLayout {
+    static let margin: CGFloat = 20
+}
+
 @MainActor
 final class SettingsTabState: ObservableObject {
     @Published var tab: SettingsTab = .general
@@ -50,12 +57,49 @@ struct SettingsView: View {
     @ObservedObject var tabState: SettingsTabState
 
     var body: some View {
-        TabView(selection: $tabState.tab) {
-            GeneralTab(store: config).tabItem { Label("General", systemImage: "gearshape") }.tag(SettingsTab.general)
-            PipesTab(store: pipes, config: config).tabItem { Label("Pipes", systemImage: "line.3.horizontal.decrease") }.tag(SettingsTab.pipes)
+        NavigationSplitView {
+            List(selection: selection) {
+                sidebarRow(.general, "General", "gearshape.fill", Color.gray)
+                sidebarRow(.pipes, "Pipes", "line.3.horizontal.decrease", Theme.violet)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                HStack(spacing: 10) {
+                    TalkyMark(size: 26)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Talky").font(.headline)
+                        Text("Version \(AppInfo.version)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+            }
+            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
+        } detail: {
+            switch tabState.tab {
+            case .general: GeneralTab(store: config)
+            case .pipes: PipesTab(store: pipes, config: config)
+            }
         }
-        .padding()
         .frame(minWidth: 900, minHeight: 640)
+    }
+
+    private var selection: Binding<SettingsTab?> {
+        Binding(get: { tabState.tab }, set: { if let tab = $0 { tabState.tab = tab } })
+    }
+
+    private func sidebarRow(_ tab: SettingsTab, _ title: String, _ symbol: String, _ color: Color) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(color.gradient))
+        }
+        .tag(tab)
     }
 }
 
@@ -64,6 +108,8 @@ struct SettingsView: View {
 struct GeneralTab: View {
     @ObservedObject var store: ConfigStore
     @ObservedObject private var updater = Updater.shared
+    @ObservedObject private var speechModel = SpeechModel.shared
+    @ObservedObject private var anthropicKey = AnthropicKeyEntry.shared
     @State private var launchAtLogin = LoginItem.isEnabled
     @State private var permissions = PermissionState()
     private let refresh = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
@@ -77,51 +123,97 @@ struct GeneralTab: View {
                          ("claude-opus-5-5", "Opus 5.5 (slowest)")]
 
     var body: some View {
-        Form {
-            if let err = store.loadError {
-                Text(err).foregroundStyle(.red)
-            }
-            if !permissions.allGranted {
-                Section("Permissions") {
-                    PermissionRows(state: permissions)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                SettingsHero(title: "General",
+                             subtitle: "Hold \(HotkeySpec.label(store.config.hotkey)) to talk. Talky types wherever your cursor is.") {
+                    PillPreview(label: "Hold \(HotkeySpec.label(store.config.hotkey))", pipes: [], selectedId: nil)
                 }
+                if let err = store.loadError {
+                    Label(err, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                }
+                if !permissions.allGranted {
+                    SettingsGroup("Permissions", footer: "Talky needs both. Allow opens the right pane in System Settings.") {
+                        PermissionRows(state: permissions).padding(.vertical, 8)
+                    }
+                }
+                SettingsGroup("Dictation") {
+                    SettingsRow("Dictate") { hotkeyPicker("Dictate", $store.config.hotkey, Self.mainHotkeys) }
+                    Divider()
+                    SettingsRow("Language") { choicePicker("Language", $store.config.transcription.language, Self.languages) }
+                    Divider()
+                    SettingsRow("Launch at login") {
+                        Toggle("Launch at login", isOn: $launchAtLogin)
+                            .toggleStyle(.switch).labelsHidden()
+                            .onChange(of: launchAtLogin) { _, on in LoginItem.set(on); launchAtLogin = LoginItem.isEnabled }
+                    }
+                }
+                SettingsGroup("Speech model", footer: "Talky turns speech into text on this Mac. Your audio never leaves it.") {
+                    SpeechModelRow(model: speechModel).padding(.vertical, 8)
+                }
+                claude
+                about
             }
-            Section("Dictation") {
-                hotkeyPicker("Dictate", $store.config.hotkey, Self.mainHotkeys)
-                hotkeyPicker("Transform selected text", $store.config.transformHotkey, Self.transformHotkeys)
-                choicePicker("Language", $store.config.transcription.language, Self.languages)
-                Toggle("Launch at login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, on in LoginItem.set(on); launchAtLogin = LoginItem.isEnabled }
+            .padding(SettingsLayout.margin)
+        }
+        .onReceive(refresh) { _ in permissions = PermissionState() }
+    }
+
+    /// Everything that needs the Anthropic key: pipes on dictation and the transform hotkey.
+    var claude: some View {
+        let hasKey = AnthropicClient.apiKey != nil
+        let on = hasKey && store.config.llm.enabled
+        return SettingsGroup("Claude", footer: "Pipes send the transcript to Anthropic to rewrite it, never your audio. "
+                                 + "Without a key, Talky types exactly what you said. The key stays on this Mac in ~/.config/talky/.env.") {
+            SettingsRow("Anthropic API key") {
+                AnthropicKeyField(entry: anthropicKey).frame(maxWidth: 420)
             }
-            Section("API keys") {
-                APIKeyField(title: "Groq", envKey: "GROQ_API_KEY", url: APIKeyField.groqURL)
-                APIKeyField(title: "Anthropic", envKey: "ANTHROPIC_API_KEY", url: APIKeyField.anthropicURL)
+            HStack {
+                Spacer(minLength: 16)
+                AnthropicKeyStatus(entry: anthropicKey).frame(maxWidth: 420)
             }
-            Section("Cleanup") {
-                let hasKey = AnthropicClient.apiKey != nil
-                Toggle("Clean up dictation with Claude", isOn: $store.config.llm.enabled)
+            .padding(.bottom, 10)
+            Divider()
+            SettingsRow("Rewrite dictation with pipes") {
+                Toggle("Rewrite dictation with pipes", isOn: $store.config.llm.enabled)
+                    .toggleStyle(.switch).labelsHidden()
                     .disabled(!hasKey)
-                choicePicker("Model", $store.config.llm.model, Self.models)
-                    .disabled(!hasKey || !store.config.llm.enabled)
-                if !hasKey {
-                    Text("Add an Anthropic key to turn on cleanup and pipes.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
             }
-            Section {
-                if updater.isAvailable {
-                    Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
-                }
-                HStack {
-                    Text("Talky \(AppInfo.version)").foregroundStyle(.secondary)
-                    Spacer()
-                    if updater.isAvailable { Button("Check for Updates…") { updater.checkNow() } }
-                    Button("Uninstall Talky…") { Uninstaller.confirmAndRun() }
-                }
+            Divider()
+            SettingsRow("Model") {
+                choicePicker("Model", $store.config.llm.model, Self.models).disabled(!on)
+            }
+            Divider()
+            SettingsRow("Transform selected text") {
+                hotkeyPicker("Transform selected text", $store.config.transformHotkey, Self.transformHotkeys).disabled(!on)
             }
         }
-        .formStyle(.grouped)
-        .onReceive(refresh) { _ in permissions = PermissionState() }
+    }
+
+    var about: some View {
+        SettingsGroup("About") {
+            HStack(spacing: 12) {
+                TalkyMark(size: 30)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Talky").font(.headline)
+                    Text("Version \(AppInfo.version)").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if updater.isAvailable { Button("Check for Updates…") { updater.checkNow() } }
+            }
+            .padding(.vertical, 10)
+            if updater.isAvailable {
+                Divider()
+                SettingsRow("Check for updates automatically") {
+                    Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
+                        .toggleStyle(.switch).labelsHidden()
+                }
+            }
+            Divider()
+            SettingsRow("Removes Talky, its permissions and its files.", secondary: true) {
+                Button("Uninstall Talky…", role: .destructive) { Uninstaller.confirmAndRun() }
+            }
+        }
     }
 
     func hotkeyPicker(_ title: String, _ binding: Binding<String>, _ options: [String]) -> some View {
@@ -131,6 +223,8 @@ struct GeneralTab: View {
                 Text(HotkeySpec.label(binding.wrappedValue)).tag(binding.wrappedValue)
             }
         }
+        .labelsHidden()
+        .fixedSize()
     }
 
     /// A picker over fixed choices that still shows a hand-edited value from config.json.
@@ -141,38 +235,121 @@ struct GeneralTab: View {
                 Text(binding.wrappedValue).tag(binding.wrappedValue)
             }
         }
+        .labelsHidden()
+        .fixedSize()
     }
 }
 
-/// A secure field bound to one key in ~/.config/talky/.env. Saves when the field loses focus or on Return.
-struct APIKeyField: View {
-    static let groqURL = URL(string: "https://console.groq.com/keys")!
-    static let anthropicURL = URL(string: "https://console.anthropic.com/settings/keys")!
-
+/// A titled panel of rows. General and Pipes share this panel language and one column.
+struct SettingsGroup<Content: View>: View {
     let title: String
-    let envKey: String
-    let url: URL
-    var prompt = "Paste key"
-    @State private var value = ""
+    var footer: String?
+    @ViewBuilder var content: Content
+
+    init(_ title: String, footer: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.footer = footer
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            VStack(spacing: 0) { content }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(nsColor: .controlBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.08)))
+            if let footer {
+                Text(footer).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// One settings row: a label on the left, its control on the right.
+struct SettingsRow<Control: View>: View {
+    let title: String
+    var secondary = false
+    @ViewBuilder var control: Control
+
+    init(_ title: String, secondary: Bool = false, @ViewBuilder control: () -> Control) {
+        self.title = title
+        self.secondary = secondary
+        self.control = control()
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Text(title).foregroundStyle(secondary ? .secondary : .primary)
+            Spacer(minLength: 16)
+            control
+        }
+        .frame(minHeight: 30)
+        .padding(.vertical, 8)
+    }
+}
+
+/// The Anthropic key field and its Test Key button. Shared by Settings and onboarding;
+/// AnthropicKeyStatus shows what Anthropic said about the key.
+struct AnthropicKeyField: View {
+    @ObservedObject var entry: AnthropicKeyEntry
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack {
-            SecureField(title, text: $value, prompt: Text(prompt))
+        HStack(spacing: 8) {
+            SecureField("Anthropic API key", text: $entry.draft, prompt: Text("Paste your key"))
+                .textFieldStyle(.roundedBorder)
                 .focused($focused)
-                .onSubmit(save)
-                .onChange(of: focused) { _, isFocused in if !isFocused { save() } }
-            Link("Get a key", destination: url).font(.caption)
+                .onSubmit { entry.test() }
+            Button("Test Key") { entry.test() }
+                .disabled(!entry.canTest)
         }
-        .onAppear { value = Env.value(envKey) ?? "" }
-        .onDisappear(perform: save)
+        // A key nobody has tested yet: the saved one when the field appears, a typed one when the user leaves it.
+        .onAppear { entry.testIfNeeded() }
+        .onChange(of: focused) { _, isFocused in if !isFocused { entry.testIfNeeded() } }
+        .onDisappear { entry.testIfNeeded() }
     }
+}
 
-    func save() {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != (Env.value(envKey) ?? "") else { return }
-        Env.set(envKey, trimmed)
-        NotificationCenter.default.post(name: .talkyKeysChanged, object: nil)
+/// What Anthropic said about the key, or where to get one.
+struct AnthropicKeyStatus: View {
+    static let consoleURL = URL(string: "https://console.anthropic.com/settings/keys")!
+
+    @ObservedObject var entry: AnthropicKeyEntry
+    var secondary: Color = .secondary
+    var link: Color = .accentColor
+
+    var body: some View {
+        Group {
+            switch entry.status {
+            case .empty:
+                Link(destination: Self.consoleURL) {
+                    Text("Get a key in the Anthropic Console \(Image(systemName: "arrow.up.right"))")
+                }
+                .tint(link)
+            case .untested:
+                Text("Talky saves the key after Anthropic accepts it.").foregroundStyle(secondary)
+            case .testing:
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.mini)
+                    Text("Testing the key with Anthropic…")
+                }
+                .foregroundStyle(secondary)
+            case .works:
+                Label("The key works and is saved.", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+            case .rejected(let message):
+                Label(message, systemImage: "xmark.circle.fill").foregroundStyle(.red)
+            case .unreachable(let reason):
+                let reason = reason.hasSuffix(".") ? String(reason.dropLast()) : reason
+                Label("Talky couldn't reach Anthropic to test the key (\(reason)). Talky saved the key anyway.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+        }
+        .font(.caption)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -180,32 +357,124 @@ extension Notification.Name {
     static let talkyKeysChanged = Notification.Name("TalkyKeysChanged")
 }
 
+/// The speech model's name, size and download state, with the action that fits. Shared by Settings and onboarding.
+struct SpeechModelRow: View {
+    @ObservedObject var model: SpeechModel
+    var secondary: Color = .secondary
+    /// Onboarding moves the download into its footer button, so the row only reports.
+    var showsActions = true
+    var showsIcon = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if showsIcon {
+                Image(systemName: "waveform")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 26, height: 26)
+                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.indigo.gradient))
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(model.displayName)
+                Text(detail).font(.caption).monospacedDigit()
+                    .foregroundStyle(isFailed ? Color.orange : secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 12)
+            trailing
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var isFailed: Bool {
+        if case .failed = model.state { return true }
+        return false
+    }
+
+    private var detail: String {
+        switch model.state {
+        case .ready:
+            return "Downloaded. Works offline."
+        case .missing:
+            return model.expectedSize.map { "\(Self.bytes($0)), one-time download" } ?? "One-time download"
+        case .downloading(let received, let total):
+            return total > 0 ? "\(Self.bytes(received)) of \(Self.bytes(total))" : Self.bytes(received)
+        case .failed(let message):
+            return message
+        }
+    }
+
+    @ViewBuilder private var trailing: some View {
+        switch model.state {
+        case .ready:
+            Label("Ready", systemImage: "checkmark.circle.fill")
+                .labelStyle(.titleAndIcon).font(.callout).foregroundStyle(.green)
+        case .downloading(let received, let total):
+            HStack(spacing: 8) {
+                ProgressView(value: total > 0 ? Double(received) / Double(total) : 0)
+                    .frame(width: 120)
+                    .accessibilityLabel("Download progress")
+                if showsActions {
+                    Button { model.cancel() } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain).foregroundStyle(secondary)
+                        .help("Stop the download")
+                        .accessibilityLabel("Stop the download")
+                }
+            }
+        case .missing:
+            if showsActions { Button("Download") { model.download() } }
+        case .failed:
+            if showsActions { Button("Try Again") { model.download() } }
+        }
+    }
+
+    static func bytes(_ n: Int64) -> String { ByteCountFormatter.string(fromByteCount: n, countStyle: .file) }
+}
+
 /// Permission status with a button for each missing one. Shared by Settings and onboarding.
 struct PermissionRows: View {
     let state: PermissionState
 
     var body: some View {
-        row("Microphone", state.mic) { Task { _ = await AudioRecorder.requestPermission(); Permissions.openSettings("Privacy_Microphone") } }
-        row("Accessibility", state.accessibility) { Permissions.promptAccessibility(); Permissions.openSettings("Privacy_Accessibility") }
-        row("Input Monitoring", state.input) { Permissions.promptInputMonitoring(); Permissions.openSettings("Privacy_ListenEvent") }
+        row("Microphone", "To hear you.", "mic.fill", .orange, state.mic) { Permissions.requestMicrophone() }
+        // Talky is already in this list: its key monitor tries to start at launch, and that adds it.
+        // So Allow only opens System Settings, without the system prompt on top of it.
+        row("Accessibility", "To notice the Talky keys and type for you.", "accessibility", .blue, state.accessibility) {
+            Permissions.openSettings("Privacy_Accessibility")
+        }
     }
 
-    func row(_ title: String, _ granted: Bool, _ grant: @escaping () -> Void) -> some View {
-        HStack {
-            Image(systemName: granted ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(granted ? .green : .secondary)
-            Text(title)
+    func row(_ title: String, _ why: String, _ symbol: String, _ color: Color, _ granted: Bool,
+             _ grant: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 26, height: 26)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(color.gradient))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                Text(why).font(.caption).foregroundStyle(.secondary)
+            }
             Spacer()
-            if !granted { Button("Allow", action: grant) }
+            if granted {
+                Label("Allowed", systemImage: "checkmark.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.callout)
+                    .foregroundStyle(.green)
+            } else {
+                Button("Allow", action: grant)
+            }
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
 struct PermissionState {
     var accessibility = Permissions.accessibility
-    var input = Permissions.inputMonitoring
     var mic = Permissions.microphone
-    var allGranted: Bool { accessibility && input && mic }
+    var allGranted: Bool { accessibility && mic }
+    var grantedCount: Int { [accessibility, mic].filter { $0 }.count }
 }
 
 public enum LoginItem {
@@ -239,9 +508,12 @@ struct PipesTab: View {
     @State private var task: Task<Void, Never>?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
+            SettingsHero(title: "Pipes",
+                         subtitle: "Press a number while you talk to pick a pipe. 0 is always the raw transcript.") {
+                PillPreview(label: "Hold \(HotkeySpec.label(config.config.hotkey))", pipes: store.pipes, selectedId: store.defaultPipeId)
+            }
             testInput
-            Divider()
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
@@ -261,16 +533,17 @@ struct PipesTab: View {
                 Button("Use raw transcript by default") { store.defaultPipeId = nil }
                     .disabled(store.defaultPipeId == nil)
                 Spacer()
-                Text("Order sets the number key in the pill and the transform picker. 0 is always the raw transcript.")
+                Text("Order sets the number key in the pill and the transform picker.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
+        .padding(SettingsLayout.margin)
     }
 
     var hasKey: Bool { AnthropicClient.apiKey != nil }
 
     var testInput: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Test text").font(.headline)
                 Spacer()
@@ -284,13 +557,17 @@ struct PipesTab: View {
                 Button { runAll() } label: { Label("Run all pipes", systemImage: "play.fill") }
                     .keyboardShortcut(.return, modifiers: .command)
                     .buttonStyle(.borderedProminent)
+                    .tint(Theme.select)
                     .disabled(!hasKey || store.pipes.isEmpty || input.isEmpty)
                     .help("Runs the text through every pipe (⌘↩)")
             }
             TextEditor(text: $input)
                 .font(.body)
-                .frame(height: 70)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+                .scrollContentBackground(.hidden)
+                .padding(8)
+                .frame(height: 76)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(nsColor: .textBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.primary.opacity(0.1)))
         }
     }
 
@@ -338,13 +615,14 @@ struct PipeRow: View {
 
     var body: some View {
         if store.pipes.indices.contains(index), store.pipes[index].id == pipeId {
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .top, spacing: 18) {
                 editor.frame(maxWidth: .infinity)
                 output.frame(maxWidth: .infinity)
             }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.2)))
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(nsColor: .controlBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(isDefault ? 0 : 0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.select.opacity(isDefault ? 0.6 : 0), lineWidth: 1.5))
         }
     }
 
@@ -354,18 +632,16 @@ struct PipeRow: View {
     var editor: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(index < 9 ? "\(index + 1)" : "–")
-                    .font(.system(size: 12, weight: .bold).monospacedDigit())
-                    .frame(width: 22, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.secondary.opacity(0.15)))
+                KeyBadge(text: index < 9 ? "\(index + 1)" : "–", selected: isDefault, size: 24, onGlass: false)
                 TextField("Name", text: pipe.name)
                     .textFieldStyle(.plain)
                     .font(.title3.weight(.semibold))
                 Spacer()
                 if isDefault {
-                    Text("Default").font(.caption.weight(.medium))
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Color.accentColor.opacity(0.2)))
+                    Text("Default").font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.select)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(Theme.select.opacity(0.14)))
                 } else {
                     Button("Make default") { store.defaultPipeId = pipeId }
                         .buttonStyle(.link).font(.caption)
@@ -381,16 +657,19 @@ struct PipeRow: View {
                 .buttonStyle(.borderless)
             }
             TextEditor(text: pipe.prompt)
-                .font(.system(.body, design: .monospaced))
+                .font(.body)
+                .scrollContentBackground(.hidden)
+                .padding(8)
                 .frame(minHeight: 130)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(nsColor: .textBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.primary.opacity(0.1)))
         }
     }
 
     var output: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Output").font(.headline).foregroundStyle(.secondary)
+                Text("Output").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
                 if let r = result {
                     if r.running { ProgressView().controlSize(.small) }
@@ -420,8 +699,8 @@ struct PipeRow: View {
             }
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
-            .padding(8)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
         }
     }
 }

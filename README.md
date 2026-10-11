@@ -1,8 +1,13 @@
 # Talky
 
-Talky is a menu bar dictation app for macOS. Hold a key, talk, let go, and the text appears wherever your cursor is. Speech goes through Whisper, then (optionally) through Claude to strip the "um"s and fix punctuation.
+Talky is a menu bar dictation app for macOS. Hold a key, talk, let go, and the text appears wherever your cursor is.
 
-No accounts and no telemetry. With the local whisper.cpp model and no API keys it runs fully offline and pastes the raw transcript.
+It works in two layers:
+
+- **Dictation.** Speech turns into text on your Mac with Whisper (whisper.cpp ships inside the app). It's free, works offline, and your audio never leaves the Mac.
+- **Pipes**, optional. Add an Anthropic API key and Claude also rewrites what you said before Talky types it: strips the "um"s, makes it formal, turns it into bullets.
+
+No accounts and no telemetry.
 
 ## What it does
 
@@ -11,8 +16,8 @@ No accounts and no telemetry. With the local whisper.cpp model and no API keys i
 | Hold `fn` | Records while held. On release it transcribes, runs the default pipe, and pastes. |
 | Double-tap `fn` | Hands-free recording. Tap `fn` once more (or click the stop button on the pill) to finish. Stops by itself after 5 minutes. |
 | `1`-`9` while recording | Picks which pipe to run on this dictation. `0` pastes the raw transcript. You can also click the chips next to the pill. |
-| Select text, tap right `⌥` | Opens the transform picker. Press a number or click a pipe to rewrite the selection in place. |
-| Select text, tap right `⌥`, then hold `fn` | Dictate your own instruction ("make this friendlier", "translate to Spanish") and it gets applied to the selection. |
+| Select text, tap right `⌥` | Opens the transform picker. Press a number, use `↑` `↓` and Return, or click a pipe to rewrite the selection in place. |
+| Select text, tap right `⌥`, then hold `fn` | Dictate your own instruction ("make this friendlier", "translate to Spanish") and it gets applied to the selection. Or pick "Speak an instruction" in the picker: it records hands-free until you tap `fn`, press Return or click stop. Esc cancels. |
 | `Esc` | Drops a recording, kills a transcription or LLM call already running, or closes the picker. Talky only watches Esc, so it still reaches the app you're typing in. |
 
 The pill at the bottom of the screen shows that the mic is live, which mode you're in (Listening, Hands-free, Instruction), the input level and elapsed time.
@@ -21,25 +26,26 @@ The pill at the bottom of the screen shows that the mic is live, which mode you'
 
 Download `Talky-latest.dmg` from the website, open it and drag Talky into Applications. Talky checks for updates every six hours and installs them through Sparkle. You can also check from the menu bar.
 
-On first launch a short setup window asks for the three permissions and for your API keys:
+On first launch a short setup window walks through:
 
-- **Groq** turns speech into text. The free tier is enough for dictation.
-- **Anthropic** runs cleanup and pipes. Skip it and Talky pastes the raw transcript. The pill shows no pipes and the transform hotkey asks for a key.
+1. **The speech model.** Talky downloads Whisper large-v3 turbo (574 MB) once, into `~/.config/talky/models`. You can go on while it downloads.
+2. **Two permissions**, Microphone and Accessibility.
+3. **Pipes**, optional. An example shows what each pipe does to one sentence, and that pipes also rewrite text you select. Paste an Anthropic API key and press Test Key, or skip it and Talky types exactly what you said. Without a key the pill shows no pipes and the transform hotkey asks for one.
+4. **Try dictation.** Hold `fn` and dictate into a box in the setup window.
+5. **Try a pipe on your text**, with a key only. A box starts with a draft message, already selected. Tap right `⌥`, pick a pipe, and Claude rewrites the draft in place.
 
-Both keys can be added or changed later in Settings. Talky saves them to `~/.config/talky/.env`.
+When you finish, Settings opens on Pipes, where you can write your own. The key can be added or changed later in Settings. Talky saves it to `~/.config/talky/.env` after Anthropic accepts it.
 
 ### Build from source
 
 Requirements: macOS 14 or later, Xcode command line tools (`xcode-select --install`).
 
 ```bash
-# Local transcription (skip if you only want Groq/OpenAI)
-brew install whisper-cpp
-scripts/download-model.sh small        # or small.en, medium, medium.en
-
 # Build, copy to /Applications, link .env into ~/.config/talky, launch
 scripts/install.sh
 ```
+
+SwiftPM downloads the prebuilt whisper.cpp framework on the first build, and `build-app.sh` copies it into the app.
 
 `install.sh` symlinks the repo's `.env` to `~/.config/talky/.env` if that file doesn't exist yet. To just build without installing: `scripts/build-app.sh` produces `build/Talky.app`. Source builds have no auto-updates unless you set `TALKY_FEED_URL`.
 
@@ -55,8 +61,7 @@ The setup window asks for these one at a time. If you skip one, Settings lists w
 
 | Permission | Where | Why |
 | --- | --- | --- |
-| Accessibility | Privacy & Security, Accessibility | Required for the global hotkey (an active event tap), for pasting with a simulated Cmd-V, and for reading the selected text. |
-| Input Monitoring | Privacy & Security, Input Monitoring | macOS gates keyboard event taps behind this too. Without it the hotkey never fires. |
+| Accessibility | Privacy & Security, Accessibility | Required for the global hotkey (an active event tap, so Input Monitoring isn't needed), for pasting with a simulated Cmd-V, and for reading the selected text. |
 | Microphone | Privacy & Security, Microphone | Recording. |
 
 After granting Accessibility you don't need to relaunch. Talky retries every two seconds and the menu bar icon changes from a crossed-out mic to a waveform once the hotkey is live.
@@ -68,15 +73,15 @@ Two system settings get in the way of the `fn` key:
 
 ### Rebuilds and lost permissions
 
-`build-app.sh` signs ad hoc by default. macOS ties permission grants to the code signature, and an ad hoc signature changes on every build, so after a rebuild Talky shows up in the lists but doesn't work. Remove it with the minus button and add it again.
+macOS ties permission grants to the code signature. An ad hoc signature changes on every build, so after a rebuild Talky stays on in the lists but doesn't work. Remove it with the minus button and add it again.
 
-To avoid that, sign with a stable certificate:
+`build-app.sh` signs with a `Talky Dev` or `Apple Development` certificate from your Keychain if it finds one, and grants then survive rebuilds. Without one it signs ad hoc. To make a certificate:
 
 1. Open Keychain Access, then Keychain Access menu, Certificate Assistant, Create a Certificate.
 2. Name it `Talky Dev`, identity type Self Signed Root, certificate type Code Signing.
-3. Build with `TALKY_SIGN_IDENTITY="Talky Dev" scripts/install.sh`.
+3. Build with `scripts/install.sh`.
 
-Grants then survive rebuilds.
+To sign with a different identity, set `TALKY_SIGN_IDENTITY`.
 
 ## Configuration
 
@@ -85,8 +90,8 @@ Everything lives in `~/.config/talky/`:
 ```
 config.json     settings, including hotkeys (created with defaults on first launch)
 pipes.json      your pipes and which one is the default
-.env            API keys
-models/         whisper.cpp ggml model files
+.env            the Anthropic API key
+models/         the Whisper speech model (Talky downloads it)
 ```
 
 Talky watches the folder, so saving `config.json` in an editor applies immediately. If the file has a JSON error, Talky keeps the last good config and shows the error in the menu. Missing keys fall back to defaults, so a file with only `{"hotkey": "right_command"}` is valid.
@@ -98,16 +103,9 @@ Talky watches the folder, so saving `config.json` in an editor applies immediate
   "transformHotkey": "right_option",  // tap with text selected
   "showPipesInPill": true,
   "transcription": {
-    "backend": "auto",                // auto | local | groq | openai
-    "localModel": "small",            // small | small.en | medium | medium.en | /abs/path/model.bin
+    "model": "large-v3-turbo-q5_0",   // any whisper.cpp model name, or /abs/path/model.bin
     "language": "auto",               // or "en", "he", "de", ...
-    "useWhisperServer": true,         // keep the model loaded in a background whisper-server
-    "fallbackToLocal": true,          // cloud request failed? retry locally
-    "vocabulary": "",                 // names and jargon to bias spelling, e.g. "Collibra, Kubernetes"
-    "groqModel": "whisper-large-v3-turbo",
-    "openaiModel": "whisper-1",
-    "whisperCliPath": null,           // only if whisper.cpp isn't in /opt/homebrew/bin or PATH
-    "whisperServerPath": null
+    "vocabulary": ""                  // names and jargon to bias spelling, e.g. "Collibra, Kubernetes"
   },
   "llm": {
     "enabled": true,                  // false: always paste the raw transcript
@@ -135,15 +133,15 @@ A hotkey is either a single modifier or a chord.
 
 The transform hotkey fires on a clean tap only. Holding right `⌥` to type `ø` or `™` won't open the picker.
 
-### Transcription backends
+### Speech model
 
-`auto` picks Groq if `GROQ_API_KEY` is set, then OpenAI if `OPENAI_API_KEY` is set, and otherwise the local model. With `fallbackToLocal`, a failed cloud call (offline, rate limited) retries with whisper.cpp, as long as a model file is downloaded.
+Talky runs whisper.cpp inside the app, on the GPU through Metal. The model loads once and stays in memory, so a dictation costs only the inference time.
 
-Locally, Talky starts `whisper-server` in the background so the model stays in memory, and falls back to one-shot `whisper-cli` if the server won't start. `small` is the default. It's fast on Apple Silicon and good enough for most dictation. `medium` is more accurate and roughly 2-3x slower. If you only speak English, the `.en` variants are a bit more accurate at the same size. Server logs go to `~/Library/Logs/Talky/whisper-server.log`.
+The default is `large-v3-turbo-q5_0`, Whisper large-v3 turbo quantized to 574 MB. To use another model, set `transcription.model` to its whisper.cpp name (`small`, `medium`, `small.en`, ...). Talky shows it as missing in Settings and downloads it from the whisper.cpp model repository on Hugging Face. An absolute path to a ggml file also works and is never downloaded.
 
 ### LLM model
 
-Pipes run on `claude-haiku-4-5-20251001`, chosen in Settings, then Cleanup. Every dictation waits on this call: Haiku takes about 0.7 s for a sentence, Opus 5.5 about 3 s. Sonnet and Opus give better rewrites for the Formal and Bullets pipes, but cleanup doesn't need them.
+Pipes run on `claude-haiku-4-5-20251001`, chosen in Settings, then Claude. Every dictation waits on this call: Haiku takes about 0.7 s for a sentence, Opus 5.5 about 3 s. Sonnet and Opus give better rewrites for the Formal and Bullets pipes, but cleanup doesn't need them.
 
 ## Pipes
 
@@ -159,7 +157,10 @@ Every pipe runs inside a fixed wrapper prompt that tells Claude to return only t
 
 ## Troubleshooting
 
-- **Nothing happens when I hold fn.** Check the menu bar icon. A crossed-out mic means Accessibility or Input Monitoring is missing, or Talky is turned off. Also check the 🌐 key setting above.
+- **Nothing happens when I hold fn.** Check the menu bar icon. A crossed-out mic means Accessibility is missing or Talky is turned off. Also check the 🌐 key setting above.
+- **"Talky needs its speech model first".** The model isn't downloaded yet. Download it in Settings, General, Speech model, or from the menu bar.
+- **"Talky needs microphone access".** You answered Don't Allow when macOS asked. Turn Talky on in System Settings, Privacy & Security, Microphone. Settings, General has a button that opens it.
+- **The Anthropic key test fails.** "Anthropic didn't accept this key" means the key is wrong or revoked, and Talky doesn't save it. Copy it again from the Anthropic Console. If Talky can't reach Anthropic, it saves the key anyway, and you can test it again later.
 - **Hotkey dead in password fields.** Expected. macOS secure input blocks all event taps while a password field has focus.
 - **"Didn't catch any speech".** The recording was under 0.3 s or nearly silent. Check the input device in System Settings, Sound.
 - **Text doesn't paste in one app.** A few apps ignore synthetic Cmd-V. The text is still on the clipboard, so paste it by hand.
@@ -170,7 +171,7 @@ Every pipe runs inside a fixed wrapper prompt that tells Claude to return only t
 
 ```bash
 swift build          # debug build
-swift test           # unit tests: hotkey parsing, config merging, .env parsing, transcript cleanup, WAV
+swift test           # unit tests: hotkey parsing, config merging, .env parsing, transcript cleanup
 scripts/build-app.sh # release .app bundle
 ```
 
@@ -182,13 +183,13 @@ Layout:
 Sources/TalkyCore/
   Controller.swift     state machine: hold, double-tap, hands-free, Esc, picker
   Hotkeys.swift        hotkey parsing and the CGEventTap
-  Audio.swift          mic capture at 16 kHz mono, WAV writer
-  Transcription.swift  whisper-server / whisper-cli, Groq, OpenAI
+  Audio.swift          mic capture at 16 kHz mono
+  Transcription.swift  whisper.cpp in-process, speech model download
   LLM.swift            Claude Messages API
   TextIO.swift         paste, clipboard snapshot/restore, selected text, permissions
   Pill.swift           floating pill, pipe chips, transform picker
   Settings.swift       settings window: General, and Pipes (edit and test together)
-  Onboarding.swift     first-run window: permissions, API keys
+  Onboarding.swift     first-run window: speech model, permissions, pipes, a try
   Distribution.swift   Sparkle updater, uninstall
   AppDelegate.swift    menu bar, wiring, config file watcher
 ```

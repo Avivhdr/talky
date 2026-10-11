@@ -1,9 +1,10 @@
 #!/bin/bash
 # Builds build/Talky.app with Sparkle inside.
 #
-#   TALKY_SIGN_IDENTITY  code signing identity. Default "-" (ad hoc). A Developer ID identity also
-#                        turns on Hardened Runtime and a secure timestamp, which notarization needs.
-#                        A stable identity also keeps macOS permission grants across rebuilds.
+#   TALKY_SIGN_IDENTITY  code signing identity. Default: "Talky Dev" or "Apple Development" from the
+#                        Keychain, else "-" (ad hoc). A stable identity keeps macOS permission grants
+#                        across rebuilds. A Developer ID identity also turns on Hardened Runtime and a
+#                        secure timestamp, which notarization needs.
 #   TALKY_FEED_URL       Sparkle appcast URL. Unset means no auto-updates (local dev builds).
 #   TALKY_UNIVERSAL=1    build for arm64 and x86_64 (needs full Xcode).
 set -euo pipefail
@@ -12,7 +13,8 @@ cd "$(dirname "$0")/.."
 ARCH_FLAGS=()
 [ "${TALKY_UNIVERSAL:-}" = 1 ] && ARCH_FLAGS=(--arch arm64 --arch x86_64)
 swift build -c release ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
-BIN="$(swift build -c release ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-bin-path)/Talky"
+BIN_DIR="$(swift build -c release ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-bin-path)"
+BIN="$BIN_DIR/Talky"
 
 APP=build/Talky.app
 rm -rf "$APP"
@@ -21,6 +23,8 @@ cp "$BIN" "$APP/Contents/MacOS/Talky"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework \
   "$APP/Contents/Frameworks/Sparkle.framework"
+# whisper.cpp, which turns speech into text inside Talky.
+ditto "$BIN_DIR/whisper.framework" "$APP/Contents/Frameworks/whisper.framework"
 
 PLIST="$APP/Contents/Info.plist"
 if [ -n "${TALKY_FEED_URL:-}" ]; then
@@ -37,15 +41,24 @@ if [ -n "${TALKY_FEED_URL:-}" ]; then
   /usr/libexec/PlistBuddy -c "Add :SUScheduledCheckInterval integer 21600" "$PLIST"
 fi
 
-# Sign inside out: Sparkle's helpers, the framework, then the app.
-IDENTITY="${TALKY_SIGN_IDENTITY:--}"
+# Sign inside out: Sparkle's helpers, the frameworks, then the app.
+IDENTITY="${TALKY_SIGN_IDENTITY:-}"
+if [ -z "$IDENTITY" ]; then
+  IDENTITY="$(security find-identity -v -p codesigning | grep -E '"(Talky Dev|Apple Development)' | head -1 \
+    | sed -E 's/^[^"]*"(.+)"$/\1/' || true)"
+fi
+if [ -z "$IDENTITY" ]; then
+  IDENTITY=-
+  echo "Signing ad hoc. macOS drops Talky's permissions on every rebuild (see README, \"Rebuilds and lost permissions\")."
+fi
 SIGN=(codesign --force --sign "$IDENTITY")
-[ "$IDENTITY" != "-" ] && SIGN+=(--options runtime --timestamp)
+[[ "$IDENTITY" == "Developer ID"* ]] && SIGN+=(--options runtime --timestamp)
 FW="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
 "${SIGN[@]}" "$FW/XPCServices/Installer.xpc"
 "${SIGN[@]}" --preserve-metadata=entitlements "$FW/XPCServices/Downloader.xpc"
 "${SIGN[@]}" "$FW/Autoupdate"
 "${SIGN[@]}" "$FW/Updater.app"
 "${SIGN[@]}" "$APP/Contents/Frameworks/Sparkle.framework"
+"${SIGN[@]}" "$APP/Contents/Frameworks/whisper.framework"
 "${SIGN[@]}" --identifier dev.talky.Talky --entitlements Resources/Talky.entitlements "$APP"
 echo "Built $APP (signed with: $IDENTITY${TALKY_FEED_URL:+, updates from $TALKY_FEED_URL})"

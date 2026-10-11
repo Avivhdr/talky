@@ -23,6 +23,8 @@ public final class PillModel: ObservableObject {
     @Published var selectedPipeId: String?
     @Published var showPipes = true
     @Published var selectionPreview = ""
+    /// The picker row that ↑ and ↓ move and Return runs: a pipe, or after the pipes, "Speak an instruction".
+    @Published var highlighted = 0
     @Published var hotkeyLabel = "fn"
 
     var onSelectPipe: (String?) -> Void = { _ in }
@@ -97,18 +99,24 @@ public final class PillController {
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
         guard let vf = screen?.visibleFrame else { return }
-        let origin = NSPoint(x: vf.midX - size.width / 2, y: vf.minY + 24)
+        // The root view pads 14pt for the shadow, so the visible pill still sits 24pt above the Dock.
+        let origin = NSPoint(x: vf.midX - size.width / 2, y: vf.minY + 10)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
     }
 }
 
 // MARK: - Views
 
+/// Navy tint for the pill's glass.
+private let pillTint = Color(red: 0.03, green: 0.05, blue: 0.14).opacity(0.5)
+/// Dark layer over the glass so white text stays readable over white documents.
+private let pillVeil = Color(red: 0.03, green: 0.05, blue: 0.14).opacity(0.55)
+
 struct PillRootView: View {
     @ObservedObject var model: PillModel
 
     var body: some View {
-        Group {
+        GlassGroup(spacing: 8) {
             switch model.content {
             case .hidden:
                 Color.clear.frame(width: 1, height: 1)
@@ -120,32 +128,33 @@ struct PillRootView: View {
                     }
                 }
             case .processing(let label):
-                HStack(spacing: 8) {
+                HStack(spacing: 9) {
                     ProgressView().controlSize(.small).tint(.white)
                     Text(label).lineLimit(1).truncationMode(.tail).frame(maxWidth: 380, alignment: .leading)
                 }
-                .padding(.horizontal, 14)
-                .frame(height: 34)
-                .background(Capsule().fill(Color.black.opacity(0.85)))
+                .padding(.horizontal, 16)
+                .frame(height: 38)
+                .talkyGlass(Capsule(), tint: pillTint, veil: pillVeil)
             case .picker:
                 PickerCard(model: model)
             case .message(let text, let isError):
-                HStack(spacing: 8) {
+                HStack(spacing: 9) {
                     Image(systemName: isError ? "exclamationmark.triangle.fill" : "info.circle")
-                        .foregroundStyle(isError ? .yellow : .white.opacity(0.8))
+                        .foregroundStyle(isError ? .yellow : .white.opacity(0.85))
                     Text(text)
                         .lineLimit(4)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: 420, alignment: .leading)
                 }
-                .padding(.horizontal, 14).padding(.vertical, 9)
-                .background(RoundedRectangle(cornerRadius: 17).fill(Color.black.opacity(0.85)))
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .talkyGlass(RoundedRectangle(cornerRadius: 19, style: .continuous), tint: pillTint, veil: pillVeil)
             }
         }
         .font(.system(size: 13, weight: .medium))
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
-        .padding(6)
+        // Room for the fallback material's shadow; Liquid Glass draws its own depth.
+        .padding(14)
         .fixedSize()
     }
 }
@@ -155,32 +164,34 @@ struct RecordingPill: View {
     @State private var pulse = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 9) {
             Circle()
-                .fill(model.isInstruction ? Color.orange : Color.red)
+                .fill(model.isInstruction ? Color.orange : Theme.live)
                 .frame(width: 8, height: 8)
-                .opacity(pulse ? 0.35 : 1)
+                .opacity(pulse ? 0.4 : 1)
                 .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: pulse)
                 .onAppear { pulse = true }
             Text(label)
-            LevelBars(level: model.level)
-            Text(timeString(model.elapsed)).monospacedDigit().foregroundStyle(.white.opacity(0.7))
+            WaveBars(level: model.level)
+            Text(timeString(model.elapsed)).monospacedDigit().foregroundStyle(.white.opacity(0.72))
             if let r = model.remaining, r <= 30 {
                 Text("stops in \(Int(r.rounded()))s").foregroundStyle(.yellow)
             }
             if model.mode == .handsFree {
                 Button(action: model.onStop) {
-                    Image(systemName: "stop.fill").font(.system(size: 10))
-                        .frame(width: 20, height: 20)
-                        .background(Circle().fill(Color.white.opacity(0.18)))
+                    Image(systemName: "stop.fill").font(.system(size: 9, weight: .bold))
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(Color.white.opacity(0.2)))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .help("Stop and transcribe")
+                .accessibilityLabel("Stop and transcribe")
             }
         }
-        .padding(.horizontal, 12)
-        .frame(height: 34)
-        .background(Capsule().fill(Color.black.opacity(0.85)))
+        .padding(.horizontal, 14)
+        .frame(height: 38)
+        .talkyGlass(Capsule(), tint: pillTint, veil: pillVeil)
     }
 
     var label: String {
@@ -189,27 +200,11 @@ struct RecordingPill: View {
     }
 }
 
-struct LevelBars: View {
-    let level: Float
-    private let weights: [Float] = [0.5, 0.8, 1, 0.8, 0.5]
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(weights.indices, id: \.self) { i in
-                Capsule().fill(Color.white.opacity(0.85))
-                    .frame(width: 3, height: CGFloat(4 + 14 * min(1, level * weights[i])))
-            }
-        }
-        .frame(height: 18)
-        .animation(.linear(duration: 0.08), value: level)
-    }
-}
-
 struct PipeChips: View {
     @ObservedObject var model: PillModel
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 2) {
             ForEach(Array(model.pipes.prefix(9).enumerated()), id: \.element.id) { i, pipe in
                 chip(number: i + 1, name: pipe.name, selected: model.selectedPipeId == pipe.id) {
                     model.onSelectPipe(pipe.id)
@@ -218,23 +213,25 @@ struct PipeChips: View {
             chip(number: 0, name: "Raw", selected: model.selectedPipeId == nil) { model.onSelectPipe(nil) }
         }
         .padding(4)
-        .background(Capsule().fill(Color.black.opacity(0.85)))
+        .talkyGlass(Capsule(), tint: pillTint, veil: pillVeil)
     }
 
     func chip(number: Int, name: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Text("\(number)").font(.system(size: 10, weight: .bold).monospacedDigit())
-                    .frame(width: 15, height: 15)
-                    .background(Circle().fill(selected ? Color.black.opacity(0.15) : Color.white.opacity(0.15)))
+            HStack(spacing: 6) {
+                KeyBadge(text: "\(number)", selected: selected, size: 18)
                 Text(name).lineLimit(1)
             }
-            .padding(.leading, 4).padding(.trailing, 9).padding(.vertical, 4)
-            .foregroundStyle(selected ? Color.black : Color.white)
-            .background(Capsule().fill(selected ? Color.white : Color.clear))
+            .padding(.leading, 4).padding(.trailing, 10)
+            .frame(height: 30)
+            .foregroundStyle(selected ? Theme.navy : Color.white.opacity(0.85))
+            .background(Capsule().fill(selected ? Color.white.opacity(0.94) : Color.clear))
             .contentShape(Capsule())
+            .animation(.easeOut(duration: 0.18), value: selected)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(name), key \(number)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -242,48 +239,70 @@ struct PickerCard: View {
     @ObservedObject var model: PillModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("Transform selection").font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Button(action: model.onClose) { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)) }
-                    .buttonStyle(.plain).foregroundStyle(.white.opacity(0.6))
+                Button(action: model.onClose) {
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(Color.white.opacity(0.14)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain).foregroundStyle(.white.opacity(0.8))
+                .help("Close (Esc)")
+                .accessibilityLabel("Close")
             }
             Text(model.selectionPreview)
                 .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.68))
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Divider().overlay(Color.white.opacity(0.15))
-            ForEach(Array(model.pipes.prefix(9).enumerated()), id: \.element.id) { i, pipe in
-                row(key: "\(i + 1)", title: pipe.name, icon: nil) { model.onPickPipe(pipe) }
+                .padding(.bottom, 6)
+            let pipes = Array(model.pipes.prefix(9))
+            ForEach(Array(pipes.enumerated()), id: \.element.id) { i, pipe in
+                PickerRow(model: model, index: i, key: "\(i + 1)", title: pipe.name, icon: nil) { model.onPickPipe(pipe) }
             }
-            Divider().overlay(Color.white.opacity(0.15))
-            row(key: model.hotkeyLabel, title: "Speak an instruction", icon: "mic.fill", action: model.onSpeakInstruction)
-            Text("Hold \(model.hotkeyLabel) and say what to do, e.g. \"make it shorter\". Esc closes.")
+            Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1).padding(.vertical, 4)
+            PickerRow(model: model, index: pipes.count, key: model.hotkeyLabel, title: "Speak an instruction", icon: "mic.fill",
+                      action: model.onSpeakInstruction)
+            Text("Hold \(model.hotkeyLabel) and say what to do, e.g. \"make it shorter\". ↑ ↓ and Return pick a row. Esc closes.")
                 .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.62))
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
         }
-        .padding(12)
-        .frame(width: 320)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.88)))
+        .padding(14)
+        .frame(width: 330)
+        .talkyGlass(RoundedRectangle(cornerRadius: 20, style: .continuous), tint: pillTint, veil: pillVeil)
     }
+}
 
-    func row(key: String, title: String, icon: String?, action: @escaping () -> Void) -> some View {
+/// One picker row. The keyboard and the pointer share one highlight, as in a menu.
+struct PickerRow: View {
+    @ObservedObject var model: PillModel
+    let index: Int
+    let key: String
+    let title: String
+    let icon: String?
+    let action: () -> Void
+
+    var body: some View {
+        let highlighted = model.highlighted == index
         Button(action: action) {
             HStack(spacing: 10) {
-                Text(key).font(.system(size: 11, weight: .bold).monospacedDigit())
-                    .padding(.horizontal, 6).frame(minWidth: 22, minHeight: 20)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(0.15)))
+                KeyBadge(text: key, size: 20)
                 if let icon { Image(systemName: icon).font(.system(size: 11)) }
                 Text(title)
                 Spacer()
             }
-            .padding(.vertical, 3)
+            .padding(.horizontal, 6).padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.white.opacity(highlighted ? 0.16 : 0)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { if $0 { model.highlighted = index } }
+        .accessibilityAddTraits(highlighted ? .isSelected : [])
     }
 }
 
