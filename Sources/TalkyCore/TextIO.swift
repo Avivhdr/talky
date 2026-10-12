@@ -129,9 +129,21 @@ public enum Permissions {
         }
     }
 
+    static let askedAccessibilityKey = "askedForAccessibility"
+
+    /// macOS shows this prompt only the first time. It adds Talky to the Accessibility list.
     public static func promptAccessibility() {
+        UserDefaults.standard.set(true, forKey: askedAccessibilityKey)
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(opts)
+    }
+
+    /// The system prompt the first time; after that, only System Settings can change it.
+    /// Talky prompts again on the way, so it is back in the list if the user removed it there.
+    public static func requestAccessibility() {
+        let asked = UserDefaults.standard.bool(forKey: askedAccessibilityKey)
+        promptAccessibility()
+        if asked { openSettings("Privacy_Accessibility") }
     }
 
     public static func openSettings(_ pane: String) {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-10T20:24:18Z",
+  "generatedAt": "2026-10-12T13:27:44Z",
   "title": "Design System: Talky",
   "extensions": {
     "colorMeta": {
@@ -572,6 +572,16 @@
         "name": "step-crossfade",
         "value": "250ms easeOut",
         "purpose": "Onboarding steps."
+      },
+      {
+        "name": "reading-light",
+        "value": "1.2s smoothstep sweep + 0.25s rest; 84pt white band; bars 4.5-7pt ripple (1.1s), 15.5-18pt under the band",
+        "purpose": "The app pill while Talky transcribes or runs a pipe: light reads through the waveform bars and on across the label. Text rests at white 70%. Reduce Motion: still arch, 1.8s brightness breathe."
+      },
+      {
+        "name": "rewrite-reveal",
+        "value": "out: 8pt blur + fade 0.2s ease-out; in after 0.12s: words 45ms apart, 7pt blur to clear and 4pt rise over 0.5s ease-out cubic",
+        "purpose": "Onboarding pipes example text change (macOS 15+); cross-fade before that and under Reduce Motion."
       }
     ],
     "breakpoints": [
@@ -588,7 +598,7 @@
     ],
     "platforms": {
       "web": "web/index.html: tokens as CSS custom properties on :root (--navy, --indigo, --violet, --blue, --peach, --ink, --ink-2, --ink-3, --rim, --hair, --live, --select, --ease-out, --font, --mono).",
-      "macos": "Sources/TalkyCore/Theme.swift: Theme colors, TalkyBackdrop field, talkyGlass(tint:veil:interactive:), talkyPrimaryButton/talkySecondaryButton, GlassGroup, KeyBadge, TalkyMark, WaveBars, PillPreview, SettingsHero. Deployment target macOS 14; native Liquid Glass on macOS 26+."
+      "macos": "Sources/TalkyCore/Theme.swift: Theme colors, TalkyBackdrop field, talkyGlass(tint:veil:interactive:), talkyPrimaryButton/talkySecondaryButton, GlassGroup, KeyBadge, TalkyMark, WaveBars, PillPreview, SettingsHero. Deployment target macOS 14; native Liquid Glass on macOS 26+. Pill.swift: RecordingPill, ProcessingPill and ProcessingFrame (the Reading Light), PipeChips, PickerCard."
     }
   },
   "components": [
@@ -623,6 +633,14 @@
       "description": "Signature: the glass pill over the field, shown idle with its fixed slot beside the pipe chips. Red appears only while the mic is live.",
       "html": "<div class=\"ds-field\"><div class=\"ds-slot\"><div class=\"ds-pill\" role=\"status\"><span class=\"ds-dot\" aria-hidden=\"true\"></span>Ready</div></div><div class=\"ds-chips\" role=\"radiogroup\" aria-label=\"Pipe\"><button class=\"ds-chip\" role=\"radio\" aria-checked=\"true\"><b>1</b>Clean</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>2</b>Formal</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>3</b>Bullets</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>0</b>Raw</button></div></div>",
       "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-slot{width:272px;display:flex;justify-content:flex-end;}.ds-pill{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);height:56px;border-radius:28px;padding:8px 22px 8px 18px;display:flex;align-items:center;gap:14px;font:600 16px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:#fff;}.ds-pill .ds-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.5);flex:none;}.ds-chips{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);height:56px;border-radius:28px;padding:6px;display:flex;gap:4px;}.ds-chip{height:44px;border-radius:22px;padding:0 16px 0 8px;display:flex;gap:9px;align-items:center;font:500 15px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:var(--ink-2,rgba(255,255,255,.88));background:transparent;border:0;cursor:pointer;white-space:nowrap;transition:background-color .25s cubic-bezier(.16,1,.3,1),color .25s;}.ds-chip:hover{color:#fff;background:rgba(255,255,255,.08);}.ds-chip:focus-visible{outline:2px solid #fff;outline-offset:3px;}.ds-chip b{width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:13px;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.16);color:#fff;transition:background-color .25s;}.ds-chip[aria-checked=\"true\"]{background:rgba(255,255,255,.94);color:var(--navy,#0B1A3A);}.ds-chip[aria-checked=\"true\"] b{background:var(--select,#0A84FF);}"
+    },
+    {
+      "name": "The Pill (processing, app)",
+      "kind": "custom",
+      "refersTo": "native-pill",
+      "description": "The Reading Light: while Talky transcribes or runs a pipe, a band of white light reads through the recording's bars and on across the label. No spinner, no red.",
+      "html": "<div class=\"ds-rl-field\"><div class=\"ds-rl-pill\" role=\"status\" aria-label=\"Transcribing\"><span class=\"ds-rl-bars\" aria-hidden=\"true\"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class=\"ds-rl-label\">Transcribing…</span></div></div>",
+      "css": ".ds-rl-field{display:flex;align-items:center;justify-content:center;padding:36px 28px;border-radius:16px;background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-rl-pill{height:38px;border-radius:19px;padding:0 16px;display:flex;align-items:center;gap:10px;color:#fff;font:500 13px/1 var(--font,-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",Arial,sans-serif);background:rgba(8,13,36,.55);-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid rgba(255,255,255,.22);box-shadow:0 5px 20px rgba(0,0,0,.25);}.ds-rl-bars{display:flex;align-items:center;gap:2px;height:18px;}.ds-rl-bars i{display:block;width:2.5px;height:4.5px;border-radius:2px;background:#fff;opacity:.42;animation:ds-rl-swell 1.45s cubic-bezier(.45,0,.55,1) infinite;}.ds-rl-bars i:nth-child(2){animation-delay:0.045s}.ds-rl-bars i:nth-child(3){animation-delay:0.090s}.ds-rl-bars i:nth-child(4){animation-delay:0.135s}.ds-rl-bars i:nth-child(5){animation-delay:0.180s}.ds-rl-bars i:nth-child(6){animation-delay:0.225s}.ds-rl-bars i:nth-child(7){animation-delay:0.270s}.ds-rl-bars i:nth-child(8){animation-delay:0.315s}.ds-rl-bars i:nth-child(9){animation-delay:0.360s}@keyframes ds-rl-swell{0%{height:4.5px;opacity:.42}12%{height:15.5px;opacity:1}26%,100%{height:4.5px;opacity:.42}}.ds-rl-label{white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.7) 0 40%,#000 50%,rgba(0,0,0,.7) 60% 100%);mask-image:linear-gradient(90deg,rgba(0,0,0,.7) 0 40%,#000 50%,rgba(0,0,0,.7) 60% 100%);-webkit-mask-size:300% 100%;mask-size:300% 100%;-webkit-mask-position:100% 0;mask-position:100% 0;animation:ds-rl-read 1.45s cubic-bezier(.45,0,.55,1) infinite;}@keyframes ds-rl-read{0%,25%{-webkit-mask-position:100% 0;mask-position:100% 0}83%,100%{-webkit-mask-position:0 0;mask-position:0 0}}@keyframes ds-rl-breathe{0%,100%{opacity:1}50%{opacity:.7}}@media (prefers-reduced-motion:reduce){.ds-rl-bars i{animation:none}.ds-rl-bars i:nth-child(1){height:6.0px;opacity:0.48}.ds-rl-bars i:nth-child(2){height:7.6px;opacity:0.53}.ds-rl-bars i:nth-child(3){height:9.1px;opacity:0.59}.ds-rl-bars i:nth-child(4){height:10.7px;opacity:0.64}.ds-rl-bars i:nth-child(5){height:12.2px;opacity:0.70}.ds-rl-bars i:nth-child(6){height:10.7px;opacity:0.64}.ds-rl-bars i:nth-child(7){height:9.1px;opacity:0.59}.ds-rl-bars i:nth-child(8){height:7.6px;opacity:0.53}.ds-rl-bars i:nth-child(9){height:6.0px;opacity:0.48}.ds-rl-label{-webkit-mask-image:none;mask-image:none;animation:none}.ds-rl-pill{animation:ds-rl-breathe 1.8s ease-in-out infinite}}"
     },
     {
       "name": "Pipe Chips",
@@ -679,7 +697,7 @@
     "rules": [
       {
         "name": "The One Field Rule",
-        "body": "Every Talky-world surface sits on the same field: a navy, indigo, deep-field gradient (160° on the web, top-leading to bottom-trailing in the app) lit by violet at the top right, peach at the lower left and blue from below. The radial light is the ground of the world, not an accent glow. On the web the field is fixed behind the page and its three lights drift slowly (38 s, 46 s and 52 s, alternating); with reduced motion they stand still.",
+        "body": "Every Talky-world surface sits on the same field: a navy, indigo, deep-field gradient (160° on the web, top-leading to bottom-trailing in the app) lit by violet at the top right, peach at the lower left and blue from below. The radial light is the ground of the world, not an accent glow. On the web the field is fixed behind the page and its three lights drift slowly (38 s, 46 s and 52 s, alternating); with reduced motion they stand still. The lights burn at full strength only behind the first screen: within the first 160px of scroll they fade to 55% (`--glow`), so text set directly on the field keeps at least 4.5:1 over their brightest point. On phones the peach light sits lower (top 60vh), behind the Notes window, not behind the small print. Both values were measured, not guessed; re-measure before raising either.",
         "section": "colors"
       },
       {
@@ -736,6 +754,21 @@
         "name": "The Veil Rule",
         "body": "Native glass that floats over other apps (the pill, its chips, the processing and message capsules, the transform picker) carries the navy tint inside the glass and the navy veil over it. Liquid Glass turns light over white documents even when tinted; the veil keeps white text readable. Glass inside Talky's own windows, which always sit on the field, uses a black 15-18% tint and no veil.",
         "section": "elevation"
+      },
+      {
+        "name": "The Two Layers Rule",
+        "body": "Dictation and pipes are separate layers, and every surface shows them in that order. Dictation is free, on the Mac and needs no key. Pipes need an Anthropic key. Pipe chips appear only where pipes are explained or turned on.",
+        "section": "components"
+      },
+      {
+        "name": "The Way Forward Rule",
+        "body": "Every onboarding state has a visible way forward, and the primary button names what it does with what the user entered. A button never says \"Skip\" for something the user just typed.",
+        "section": "components"
+      },
+      {
+        "name": "The Nothing Fake Rule",
+        "body": "In onboarding, anything that looks like a control works. A still pill looks pressable, so onboarding shows none: the welcome explains the hotkey with a key cap and icons, and the first real use is the Try it step.",
+        "section": "components"
       },
       {
         "name": "The Idle Preview Rule",

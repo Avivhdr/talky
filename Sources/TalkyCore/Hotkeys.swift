@@ -254,6 +254,8 @@ public final class KeyMonitor {
     /// Fails until the app has Accessibility permission.
     public func start() -> Bool {
         if tap != nil { return true }
+        // Without Accessibility, tapCreate makes macOS show its own prompt. Onboarding asks at its permissions step.
+        guard Permissions.accessibility else { return false }
         let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
