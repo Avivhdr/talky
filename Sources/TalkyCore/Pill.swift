@@ -128,13 +128,7 @@ struct PillRootView: View {
                     }
                 }
             case .processing(let label):
-                HStack(spacing: 9) {
-                    ProgressView().controlSize(.small).tint(.white)
-                    Text(label).lineLimit(1).truncationMode(.tail).frame(maxWidth: 380, alignment: .leading)
-                }
-                .padding(.horizontal, 16)
-                .frame(height: 38)
-                .talkyGlass(Capsule(), tint: pillTint, veil: pillVeil)
+                ProcessingPill(label: label)
             case .picker:
                 PickerCard(model: model)
             case .message(let text, let isError):
@@ -197,6 +191,101 @@ struct RecordingPill: View {
     var label: String {
         if model.isInstruction { return model.mode == .handsFree ? "Instruction · hands-free" : "Instruction" }
         return model.mode == .handsFree ? "Hands-free" : "Listening"
+    }
+}
+
+/// While Talky works. The bars from the recording stay, and a band of light reads through them and on
+/// across the label, so the voice visibly turns into text.
+struct ProcessingPill: View {
+    let label: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var start = Date()
+    @State private var width: CGFloat = 0
+
+    var body: some View {
+        TimelineView(.animation) { context in
+            ProcessingFrame(label: label, time: context.date.timeIntervalSince(start), width: width, still: reduceMotion)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .padding(.horizontal, 16)
+        .frame(height: 38)
+        .talkyGlass(Capsule(), tint: pillTint, veil: pillVeil)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+    }
+}
+
+/// The processing pill's content at `time` seconds. `width` is the width of this content.
+struct ProcessingFrame: View {
+    let label: String
+    let time: Double
+    let width: CGFloat
+    /// Reduce Motion: nothing travels. The bars hold an arch and the pill slowly brightens and dims.
+    var still = false
+
+    static let barCount = 9
+    static let barWidth: CGFloat = 2.5
+    static let barGap: CGFloat = 2
+    /// One read across the pill, then a rest before the next.
+    static let sweep = 1.2
+    static let rest = 0.25
+    static let bandWidth: CGFloat = 84
+    /// The dimmest the text gets. 70% white keeps 13pt text above 4.5:1 over white documents.
+    static let floor = 0.7
+
+    var body: some View {
+        let x = lightX
+        HStack(spacing: 10) {
+            HStack(spacing: Self.barGap) {
+                ForEach(0..<Self.barCount, id: \.self) { i in
+                    let swell = swell(bar: i, lightX: x)
+                    Capsule()
+                        .fill(Color.white.opacity(0.6 + 0.4 * swell))
+                        .frame(width: Self.barWidth, height: 4.5 + 2.5 * ripple(bar: i) + 11 * swell)
+                }
+            }
+            .frame(height: 18)
+            Text(label).lineLimit(1).truncationMode(.tail).frame(maxWidth: 380, alignment: .leading)
+        }
+        .mask(alignment: .leading) {
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Color.white.opacity(floorNow))
+                if !still {
+                    LinearGradient(colors: [.clear, .white, .clear], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: Self.bandWidth)
+                        .offset(x: x - Self.bandWidth / 2)
+                }
+            }
+        }
+    }
+
+    /// The center of the band of light, in points from the leading edge. It eases out of the bars,
+    /// speeds across the label and slows as it leaves the last letters.
+    var lightX: CGFloat {
+        let p = min(1, time.truncatingRemainder(dividingBy: Self.sweep + Self.rest) / Self.sweep)
+        let eased = CGFloat(p * p * (3 - 2 * p))
+        let from: CGFloat = -14
+        return from + (width + Self.bandWidth / 2 - from) * eased
+    }
+
+    /// How much a bar rises: 1 under the band of light, 0 away from it.
+    func swell(bar i: Int, lightX: CGFloat) -> CGFloat {
+        let middle = CGFloat(Self.barCount - 1) / 2
+        if still { return 0.7 * (1 - abs(CGFloat(i) - middle) / (middle + 1)) }
+        let center = CGFloat(i) * (Self.barWidth + Self.barGap) + Self.barWidth / 2
+        let d = (center - lightX) / 9
+        return exp(-d * d)
+    }
+
+    /// A small wave along the bars, so they stay alive between reads.
+    func ripple(bar i: Int) -> CGFloat {
+        if still { return 0 }
+        return CGFloat(0.5 + 0.5 * sin(time * 2 * .pi / 1.1 - Double(i) * 0.7))
+    }
+
+    var floorNow: Double {
+        guard still else { return Self.floor }
+        return Self.floor + (1 - Self.floor) * (0.5 + 0.5 * cos(time * 2 * .pi / 1.8))
     }
 }
 
