@@ -86,27 +86,20 @@ public struct Config: Codable, Equatable {
     public var hotkey = "fn"
     /// Tap with text selected to open the transform picker.
     public var transformHotkey = "right_option"
+    /// Tap to start a hands-free recording, tap again to stop. "" turns it off.
+    public var handsFreeHotkey = "right_command"
     public var showPipesInPill = true
     public var transcription = Transcription()
     public var llm = LLM()
     public var clipboard = Clipboard()
     public var handsFree = HandsFree()
 
-    public struct Transcription: Codable, Equatable {
-        /// auto | local | groq | openai. "auto" uses Groq, then OpenAI, then local, depending on which keys exist.
-        public var backend = "auto"
-        /// small | small.en | medium | medium.en | an absolute path to a ggml model file.
-        public var localModel = "small"
+    public struct Transcription: Codable, Equatable, Sendable {
+        /// A whisper.cpp model name (large-v3-turbo-q5_0, small, medium, ...), downloaded into
+        /// ~/.config/talky/models, or an absolute path to a ggml model file.
+        public var model = "large-v3-turbo-q5_0"
         /// Whisper language code ("en", "he", ...) or "auto".
         public var language = "auto"
-        /// Keep a whisper-server process warm so local transcription skips the model load.
-        public var useWhisperServer = true
-        public var whisperCliPath: String? = nil
-        public var whisperServerPath: String? = nil
-        public var groqModel = "whisper-large-v3-turbo"
-        public var openaiModel = "whisper-1"
-        /// If a cloud request fails (offline, rate limit), retry with the local model.
-        public var fallbackToLocal = true
         /// Names and jargon passed to Whisper as a prompt to bias spelling.
         public var vocabulary = ""
     }
@@ -139,8 +132,13 @@ public struct Config: Codable, Equatable {
         guard let user = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "Talky", code: 1, userInfo: [NSLocalizedDescriptionKey: "config.json must be a JSON object"])
         }
-        let merged = deepMerge(defaults, user)
-        return try JSONDecoder().decode(Config.self, from: JSONSerialization.data(withJSONObject: merged))
+        var config = try JSONDecoder().decode(Config.self, from: JSONSerialization.data(withJSONObject: deepMerge(defaults, user)))
+        // A file from before the hands-free hotkey may use its default key for another hotkey. Leave it off then.
+        if user["handsFreeHotkey"] == nil,
+           [config.hotkey, config.transformHotkey].contains(where: { HotkeySpec.parse($0) == HotkeySpec.parse(config.handsFreeHotkey) }) {
+            config.handsFreeHotkey = ""
+        }
+        return config
     }
 
     static func deepMerge(_ base: [String: Any], _ over: [String: Any]) -> [String: Any] {
@@ -187,6 +185,9 @@ public final class ConfigStore: ObservableObject {
             let c = try Config.decode(merging: data)
             if c != config { config = c }
             loadError = nil
+            // Rewrite the file when it differs from what Talky would write: this drops settings that
+            // older versions wrote and adds new settings with their defaults.
+            if let canonical = try? c.encoded(), canonical != data { save() }
         } catch {
             // Keep the last good config so a typo in the file doesn't kill the hotkey.
             loadError = "config.json: \(error.localizedDescription)"

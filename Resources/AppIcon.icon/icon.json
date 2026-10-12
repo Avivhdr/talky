@@ -1,0 +1,41 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "srgb:0.04314,0.10196,0.22745,1.00000",
+      "srgb:0.03922,0.07059,0.18824,1.00000"
+    ],
+    "orientation" : {
+      "start" : { "x" : 0, "y" : 0 },
+      "stop" : { "x" : 1, "y" : 1 }
+    }
+  },
+  "groups" : [
+    {
+      "name" : "Waveform",
+      "layers" : [
+        {
+          "name" : "bars",
+          "image-name" : "bars.svg",
+          "glass" : true,
+          "fill" : { "solid" : "srgb:1.00000,1.00000,1.00000,1.00000" }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "specular" : true,
+      "translucency" : { "enabled" : true, "value" : 0.2 }
+    },
+    {
+      "name" : "Field",
+      "layers" : [
+        { "name" : "field", "image-name" : "field.svg", "glass" : false }
+      ],
+      "shadow" : { "kind" : "none", "opacity" : 0 },
+      "specular" : false,
+      "translucency" : { "enabled" : false, "value" : 0 }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [ "macOS" ]
+  }
+}

@@ -1,0 +1,767 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-10T20:24:18Z",
+  "title": "Design System: Talky",
+  "extensions": {
+    "colorMeta": {
+      "navy": {
+        "role": "primary",
+        "displayName": "Midnight Navy",
+        "canonical": "oklch(22.6% 0.065 263.3)",
+        "tonalRamp": [
+          "oklch(15% 0.037 263.3)",
+          "oklch(26% 0.045 263.3)",
+          "oklch(37% 0.052 263.3)",
+          "oklch(48% 0.060 263.3)",
+          "oklch(59% 0.062 263.3)",
+          "oklch(70% 0.055 263.3)",
+          "oklch(82% 0.046 263.3)",
+          "oklch(95% 0.037 263.3)"
+        ]
+      },
+      "indigo": {
+        "role": "primary",
+        "displayName": "Night Indigo",
+        "canonical": "oklch(24.6% 0.089 272.7)",
+        "tonalRamp": [
+          "oklch(15% 0.050 272.7)",
+          "oklch(26% 0.061 272.7)",
+          "oklch(37% 0.071 272.7)",
+          "oklch(48% 0.082 272.7)",
+          "oklch(59% 0.085 272.7)",
+          "oklch(70% 0.074 272.7)",
+          "oklch(82% 0.063 272.7)",
+          "oklch(95% 0.050 272.7)"
+        ]
+      },
+      "field-deep": {
+        "role": "primary",
+        "displayName": "Deep Field",
+        "canonical": "oklch(19.5% 0.061 268.9)",
+        "tonalRamp": [
+          "oklch(15% 0.034 268.9)",
+          "oklch(26% 0.042 268.9)",
+          "oklch(37% 0.049 268.9)",
+          "oklch(48% 0.056 268.9)",
+          "oklch(59% 0.058 268.9)",
+          "oklch(70% 0.051 268.9)",
+          "oklch(82% 0.043 268.9)",
+          "oklch(95% 0.034 268.9)"
+        ]
+      },
+      "violet": {
+        "role": "secondary",
+        "displayName": "Lamp Violet",
+        "canonical": "oklch(56.2% 0.250 282.9)",
+        "tonalRamp": [
+          "oklch(15% 0.141 282.9)",
+          "oklch(26% 0.171 282.9)",
+          "oklch(37% 0.201 282.9)",
+          "oklch(48% 0.231 282.9)",
+          "oklch(59% 0.240 282.9)",
+          "oklch(70% 0.209 282.9)",
+          "oklch(82% 0.177 282.9)",
+          "oklch(95% 0.141 282.9)"
+        ]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Lamp Blue",
+        "canonical": "oklch(54.7% 0.250 264.0)",
+        "tonalRamp": [
+          "oklch(15% 0.141 264.0)",
+          "oklch(26% 0.171 264.0)",
+          "oklch(37% 0.201 264.0)",
+          "oklch(48% 0.231 264.0)",
+          "oklch(59% 0.239 264.0)",
+          "oklch(70% 0.209 264.0)",
+          "oklch(82% 0.176 264.0)",
+          "oklch(95% 0.141 264.0)"
+        ]
+      },
+      "peach": {
+        "role": "secondary",
+        "displayName": "Lamp Peach",
+        "canonical": "oklch(78.1% 0.136 45.2)",
+        "tonalRamp": [
+          "oklch(15% 0.077 45.2)",
+          "oklch(26% 0.093 45.2)",
+          "oklch(37% 0.109 45.2)",
+          "oklch(48% 0.126 45.2)",
+          "oklch(59% 0.130 45.2)",
+          "oklch(70% 0.114 45.2)",
+          "oklch(82% 0.096 45.2)",
+          "oklch(95% 0.077 45.2)"
+        ]
+      },
+      "select": {
+        "role": "tertiary",
+        "displayName": "Selection Blue",
+        "canonical": "oklch(62.4% 0.206 255.5)",
+        "tonalRamp": [
+          "oklch(15% 0.116 255.5)",
+          "oklch(26% 0.141 255.5)",
+          "oklch(37% 0.165 255.5)",
+          "oklch(48% 0.190 255.5)",
+          "oklch(59% 0.197 255.5)",
+          "oklch(70% 0.172 255.5)",
+          "oklch(82% 0.145 255.5)",
+          "oklch(95% 0.116 255.5)"
+        ]
+      },
+      "live": {
+        "role": "tertiary",
+        "displayName": "Live Red",
+        "canonical": "oklch(66.3% 0.224 28.3)",
+        "tonalRamp": [
+          "oklch(15% 0.126 28.3)",
+          "oklch(26% 0.153 28.3)",
+          "oklch(37% 0.180 28.3)",
+          "oklch(48% 0.207 28.3)",
+          "oklch(59% 0.214 28.3)",
+          "oklch(70% 0.187 28.3)",
+          "oklch(82% 0.158 28.3)",
+          "oklch(95% 0.126 28.3)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(37% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(59% 0.000 89.9)",
+          "oklch(70% 0.000 89.9)",
+          "oklch(82% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.4)",
+          "rgba(255, 255, 255, 0.5)",
+          "rgba(255, 255, 255, 0.6)",
+          "rgba(255, 255, 255, 0.7)",
+          "rgba(255, 255, 255, 0.78)",
+          "rgba(255, 255, 255, 0.85)",
+          "rgba(255, 255, 255, 0.92)",
+          "rgba(255, 255, 255, 1)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "ink-tertiary": {
+        "role": "neutral",
+        "displayName": "Tertiary Ink",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.4)",
+          "rgba(255, 255, 255, 0.5)",
+          "rgba(255, 255, 255, 0.6)",
+          "rgba(255, 255, 255, 0.7)",
+          "rgba(255, 255, 255, 0.78)",
+          "rgba(255, 255, 255, 0.85)",
+          "rgba(255, 255, 255, 0.92)",
+          "rgba(255, 255, 255, 1)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "rim": {
+        "role": "neutral",
+        "displayName": "Rim",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.06)",
+          "rgba(255, 255, 255, 0.1)",
+          "rgba(255, 255, 255, 0.14)",
+          "rgba(255, 255, 255, 0.18)",
+          "rgba(255, 255, 255, 0.22)",
+          "rgba(255, 255, 255, 0.26)",
+          "rgba(255, 255, 255, 0.32)",
+          "rgba(255, 255, 255, 0.42)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.04)",
+          "rgba(255, 255, 255, 0.06)",
+          "rgba(255, 255, 255, 0.08)",
+          "rgba(255, 255, 255, 0.1)",
+          "rgba(255, 255, 255, 0.12)",
+          "rgba(255, 255, 255, 0.14)",
+          "rgba(255, 255, 255, 0.18)",
+          "rgba(255, 255, 255, 0.22)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "glass-top": {
+        "role": "neutral",
+        "displayName": "Glass Fill (top)",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.04)",
+          "rgba(255, 255, 255, 0.07)",
+          "rgba(255, 255, 255, 0.1)",
+          "rgba(255, 255, 255, 0.13)",
+          "rgba(255, 255, 255, 0.16)",
+          "rgba(255, 255, 255, 0.19)",
+          "rgba(255, 255, 255, 0.26)",
+          "rgba(255, 255, 255, 0.3)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "glass-bottom": {
+        "role": "neutral",
+        "displayName": "Glass Fill (bottom)",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.02)",
+          "rgba(255, 255, 255, 0.04)",
+          "rgba(255, 255, 255, 0.06)",
+          "rgba(255, 255, 255, 0.07)",
+          "rgba(255, 255, 255, 0.08)",
+          "rgba(255, 255, 255, 0.1)",
+          "rgba(255, 255, 255, 0.12)",
+          "rgba(255, 255, 255, 0.16)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "deep-glass-top": {
+        "role": "neutral",
+        "displayName": "Deep Glass (top)",
+        "tonalRamp": [
+          "rgba(26, 32, 76, 0.14)",
+          "rgba(26, 32, 76, 0.2)",
+          "rgba(26, 32, 76, 0.26)",
+          "rgba(26, 32, 76, 0.32)",
+          "rgba(26, 32, 76, 0.38)",
+          "rgba(26, 32, 76, 0.42)",
+          "rgba(26, 32, 76, 0.46)",
+          "rgba(26, 32, 76, 0.55)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "deep-glass-floor": {
+        "role": "neutral",
+        "displayName": "Deep Glass (floor)",
+        "tonalRamp": [
+          "rgba(12, 18, 46, 0.14)",
+          "rgba(12, 18, 46, 0.2)",
+          "rgba(12, 18, 46, 0.26)",
+          "rgba(12, 18, 46, 0.32)",
+          "rgba(12, 18, 46, 0.38)",
+          "rgba(12, 18, 46, 0.42)",
+          "rgba(12, 18, 46, 0.46)",
+          "rgba(12, 18, 46, 0.55)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "pill-tint": {
+        "role": "neutral",
+        "displayName": "Pill Tint (native)",
+        "tonalRamp": [
+          "rgba(8, 13, 36, 0.15)",
+          "rgba(8, 13, 36, 0.25)",
+          "rgba(8, 13, 36, 0.35)",
+          "rgba(8, 13, 36, 0.45)",
+          "rgba(8, 13, 36, 0.5)",
+          "rgba(8, 13, 36, 0.55)",
+          "rgba(8, 13, 36, 0.65)",
+          "rgba(8, 13, 36, 0.75)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "pill-veil": {
+        "role": "neutral",
+        "displayName": "Pill Veil (native)",
+        "tonalRamp": [
+          "rgba(8, 13, 36, 0.15)",
+          "rgba(8, 13, 36, 0.25)",
+          "rgba(8, 13, 36, 0.35)",
+          "rgba(8, 13, 36, 0.45)",
+          "rgba(8, 13, 36, 0.5)",
+          "rgba(8, 13, 36, 0.55)",
+          "rgba(8, 13, 36, 0.65)",
+          "rgba(8, 13, 36, 0.75)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "chip-selected": {
+        "role": "neutral",
+        "displayName": "Chip White",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.5)",
+          "rgba(255, 255, 255, 0.6)",
+          "rgba(255, 255, 255, 0.7)",
+          "rgba(255, 255, 255, 0.8)",
+          "rgba(255, 255, 255, 0.86)",
+          "rgba(255, 255, 255, 0.9)",
+          "rgba(255, 255, 255, 0.94)",
+          "rgba(255, 255, 255, 1)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "badge": {
+        "role": "neutral",
+        "displayName": "Badge Glass",
+        "tonalRamp": [
+          "rgba(255, 255, 255, 0.06)",
+          "rgba(255, 255, 255, 0.08)",
+          "rgba(255, 255, 255, 0.1)",
+          "rgba(255, 255, 255, 0.12)",
+          "rgba(255, 255, 255, 0.14)",
+          "rgba(255, 255, 255, 0.16)",
+          "rgba(255, 255, 255, 0.2)",
+          "rgba(255, 255, 255, 0.3)"
+        ],
+        "note": "Translucent token: the ramp steps opacity, not lightness."
+      },
+      "frost": {
+        "role": "neutral",
+        "displayName": "Frost",
+        "canonical": "oklch(96.0% 0.019 276.3)",
+        "tonalRamp": [
+          "oklch(15% 0.011 276.3)",
+          "oklch(26% 0.013 276.3)",
+          "oklch(37% 0.015 276.3)",
+          "oklch(48% 0.018 276.3)",
+          "oklch(59% 0.018 276.3)",
+          "oklch(70% 0.016 276.3)",
+          "oklch(82% 0.013 276.3)",
+          "oklch(95% 0.011 276.3)"
+        ]
+      },
+      "window-close": {
+        "role": "neutral",
+        "displayName": "Window Close",
+        "canonical": "oklch(69.4% 0.196 26.4)",
+        "tonalRamp": [
+          "oklch(15% 0.111 26.4)",
+          "oklch(26% 0.128 26.4)",
+          "oklch(37% 0.146 26.4)",
+          "oklch(48% 0.163 26.4)",
+          "oklch(59% 0.180 26.4)",
+          "oklch(70% 0.195 26.4)",
+          "oklch(82% 0.177 26.4)",
+          "oklch(95% 0.156 26.4)"
+        ],
+        "note": "Depicted macOS window chrome in the web demo only; never a brand color."
+      },
+      "window-minimize": {
+        "role": "neutral",
+        "displayName": "Window Minimize",
+        "canonical": "oklch(83.5% 0.161 80.9)",
+        "tonalRamp": [
+          "oklch(15% 0.073 80.9)",
+          "oklch(26% 0.087 80.9)",
+          "oklch(37% 0.101 80.9)",
+          "oklch(48% 0.115 80.9)",
+          "oklch(59% 0.130 80.9)",
+          "oklch(70% 0.144 80.9)",
+          "oklch(82% 0.159 80.9)",
+          "oklch(95% 0.146 80.9)"
+        ],
+        "note": "Depicted macOS window chrome in the web demo only; never a brand color."
+      },
+      "window-zoom": {
+        "role": "neutral",
+        "displayName": "Window Zoom",
+        "canonical": "oklch(72.8% 0.217 144.7)",
+        "tonalRamp": [
+          "oklch(15% 0.117 144.7)",
+          "oklch(26% 0.136 144.7)",
+          "oklch(37% 0.155 144.7)",
+          "oklch(48% 0.174 144.7)",
+          "oklch(59% 0.193 144.7)",
+          "oklch(70% 0.212 144.7)",
+          "oklch(82% 0.201 144.7)",
+          "oklch(95% 0.179 144.7)"
+        ],
+        "note": "Depicted macOS window chrome in the web demo only; never a brand color."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The hero headline only, with balanced wrapping."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Web section headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Privacy fact headings."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "The hero subhead in Secondary Ink, max 34em."
+      },
+      "intro": {
+        "displayName": "Intro",
+        "purpose": "Section intros on the open field, 20px in Secondary Ink, max 36em."
+      },
+      "document": {
+        "displayName": "Document",
+        "purpose": "Text arriving in the demo window. The pipes example uses 22px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text. 17px below 760px."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Button labels. Small buttons use 14px."
+      },
+      "pill": {
+        "displayName": "Pill",
+        "purpose": "The web pill label."
+      },
+      "chip": {
+        "displayName": "Chip",
+        "purpose": "Pipe chip names."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Names the content of a panel, sentence case. Never a kicker above a headline."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Nav links, fine print, the demo note, the footer."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "File paths and code only."
+      },
+      "native-display": {
+        "displayName": "Native Display",
+        "purpose": "Onboarding titles (Welcome, You're set)."
+      },
+      "native-title": {
+        "displayName": "Native Title",
+        "purpose": "Settings header band titles; onboarding step titles use 28pt."
+      },
+      "native-body": {
+        "displayName": "Native Body",
+        "purpose": "Onboarding body copy; step subtitles use 14pt."
+      },
+      "native-pill": {
+        "displayName": "Native Pill",
+        "purpose": "The floating pill, its chips and every pill preview."
+      }
+    },
+    "shadows": [
+      {
+        "name": "glass-lift",
+        "value": "inset 0 1px 0 rgba(255,255,255,.42), inset 0 -1px 0 rgba(255,255,255,.06), 0 24px 60px -24px rgba(0,0,0,.55)",
+        "purpose": "Every web glass shape: specular top line, faint lower edge, one long soft drop."
+      },
+      {
+        "name": "keycap",
+        "value": "inset 0 1px 0 rgba(255,255,255,.4), 0 2px 6px -2px rgba(0,0,0,.35)",
+        "purpose": "Inline key caps in running text."
+      },
+      {
+        "name": "native-fallback",
+        "value": "SwiftUI .shadow(color: .black.opacity(0.25), radius: 10, y: 5)",
+        "purpose": "Native glass on macOS 14 and 15 only; Liquid Glass draws its own depth."
+      },
+      {
+        "name": "mark-lift",
+        "value": "SwiftUI .shadow(color: .black.opacity(0.3), radius: 16, y: 8)",
+        "purpose": "The large Talky mark on the onboarding welcome step."
+      }
+    ],
+    "materials": [
+      {
+        "name": "glass",
+        "value": "background: linear-gradient(180deg, rgba(255,255,255,.19), rgba(255,255,255,.07)); backdrop-filter: blur(28px) saturate(170%); border: 1px solid rgba(255,255,255,.26); box-shadow: glass-lift",
+        "purpose": "Web light glass for chrome and controls."
+      },
+      {
+        "name": "glass-deep",
+        "value": "background: linear-gradient(180deg, rgba(26,32,76,.46), rgba(12,18,46,.42)) over the glass recipe",
+        "purpose": "Web glass that carries reading text; 0.42 is the floor."
+      },
+      {
+        "name": "glass-deep-window",
+        "value": "background: linear-gradient(180deg, rgba(26,32,76,.46) 0%, rgba(22,28,68,.42) 55%, rgba(12,18,46,.14) 100%)",
+        "purpose": "Demo window: full fill behind the text, the field shows through below it."
+      },
+      {
+        "name": "native-glass",
+        "value": "macOS 26+: .glassEffect(Glass.regular.tint(tint).interactive(i), in: shape) with an optional veil fill behind; macOS 14-15: .ultraThinMaterial + tint + veil + 1pt white 22% rim + native-fallback shadow",
+        "purpose": "The shared talkyGlass modifier."
+      },
+      {
+        "name": "native-pill-glass",
+        "value": "tint rgba(8,13,36,.5), veil rgba(8,13,36,.55)",
+        "purpose": "Glass that floats over other apps."
+      },
+      {
+        "name": "native-field-glass",
+        "value": "tint black 15% (onboarding panels) or 18% (pill previews), no veil",
+        "purpose": "Glass inside Talky's own windows on the field."
+      },
+      {
+        "name": "field",
+        "value": "linear-gradient(160deg, #0B1A3A 0%, #141A4A 48%, #0A1230 100%) + radial lights: violet .95 (64vw, top right), peach .85 (56vw, lower left), blue .8 (70vw, below)",
+        "purpose": "The ground of every Talky-world surface."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Button press, chip selection, settle."
+      },
+      {
+        "name": "press",
+        "value": "transform scale(.97), 200ms ease-out",
+        "purpose": "Web button active state."
+      },
+      {
+        "name": "chip-select",
+        "value": "250ms ease-out (web); 180ms easeOut (native)",
+        "purpose": "Pipe chip selection."
+      },
+      {
+        "name": "field-drift",
+        "value": "38s / 46s / 52s ease-in-out infinite alternate",
+        "purpose": "The three web field lights; off under reduced motion."
+      },
+      {
+        "name": "live-pulse",
+        "value": "1.4s ease-in-out infinite to .45 opacity (web); 0.7s easeInOut autoreverse to .4 (native)",
+        "purpose": "The live red dot only."
+      },
+      {
+        "name": "filler-strike",
+        "value": "900ms",
+        "purpose": "How long struck fillers stay before they fade."
+      },
+      {
+        "name": "filler-fade",
+        "value": "320ms",
+        "purpose": "Struck fillers fade out."
+      },
+      {
+        "name": "settle",
+        "value": "500ms ease-out, opacity 0 + blur(6px) to clear",
+        "purpose": "Clean text arrives in the demo window."
+      },
+      {
+        "name": "done-to-idle",
+        "value": "1600ms",
+        "purpose": "The web pill returns to Ready after Pasted."
+      },
+      {
+        "name": "caret-blink",
+        "value": "1.05s steps(1) infinite",
+        "purpose": "Demo window caret; off under reduced motion."
+      },
+      {
+        "name": "wave",
+        "value": "90ms update, 90ms linear height (web); 80ms linear (native)",
+        "purpose": "Waveform bars."
+      },
+      {
+        "name": "step-crossfade",
+        "value": "250ms easeOut",
+        "purpose": "Onboarding steps."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "760px",
+        "purpose": "Nav drops links, rows and pipes stack to one column, body 17px."
+      },
+      {
+        "name": "tiny",
+        "value": "440px",
+        "purpose": "Pipe chips become a two-column grid."
+      }
+    ],
+    "platforms": {
+      "web": "web/index.html: tokens as CSS custom properties on :root (--navy, --indigo, --violet, --blue, --peach, --ink, --ink-2, --ink-3, --rim, --hair, --live, --select, --ease-out, --font, --mono).",
+      "macos": "Sources/TalkyCore/Theme.swift: Theme colors, TalkyBackdrop field, talkyGlass(tint:veil:interactive:), talkyPrimaryButton/talkySecondaryButton, GlassGroup, KeyBadge, TalkyMark, WaveBars, PillPreview, SettingsHero. Deployment target macOS 14; native Liquid Glass on macOS 26+."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The solid white Download action. One per view.",
+      "html": "<div class=\"ds-field\"><a class=\"ds-btn-solid\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" fill=\"none\" aria-hidden=\"true\"><path d=\"M9 2.5v9m0 0 4-4m-4 4-4-4M3.5 15h11\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Download for Mac</a><a class=\"ds-btn-solid ds-small\" href=\"#\">Download</a></div>",
+      "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-btn-solid{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:50px;padding:0 24px;border-radius:25px;background:#fff;color:var(--navy,#0B1A3A);font:600 17px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);text-decoration:none;transition:transform .2s cubic-bezier(.16,1,.3,1),background-color .2s;}.ds-btn-solid:hover{background:#EEF1FF;}.ds-btn-solid:active{transform:scale(.97);}.ds-btn-solid:focus-visible{outline:2px solid #fff;outline-offset:3px;}.ds-btn-solid.ds-small{height:38px;padding:0 16px;border-radius:19px;font-size:14px;}"
+    },
+    {
+      "name": "Glass Button",
+      "kind": "button",
+      "refersTo": "button-glass",
+      "description": "The glass companion action, e.g. Hold to try. Pressed state fills to white 30%.",
+      "html": "<div class=\"ds-field\"><button class=\"ds-btn-glass\" type=\"button\" aria-pressed=\"false\">Hold to try</button><button class=\"ds-btn-glass\" type=\"button\" aria-pressed=\"true\">Holding</button></div>",
+      "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-btn-glass{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);display:inline-flex;align-items:center;justify-content:center;height:50px;padding:0 24px;border-radius:25px;color:#fff;font:600 17px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);cursor:pointer;transition:transform .2s cubic-bezier(.16,1,.3,1),background-color .2s;}.ds-btn-glass:hover{background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.1));}.ds-btn-glass:active{transform:scale(.97);}.ds-btn-glass[aria-pressed=\"true\"]{background:rgba(255,255,255,.3);}.ds-btn-glass:focus-visible{outline:2px solid #fff;outline-offset:3px;}"
+    },
+    {
+      "name": "Glass Nav",
+      "kind": "nav",
+      "refersTo": "nav",
+      "description": "Fixed light-glass capsule, centered at the top of the page.",
+      "html": "<div class=\"ds-field\"><nav class=\"ds-nav\" aria-label=\"Main\"><a class=\"ds-brand\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" aria-hidden=\"true\"><rect width=\"22\" height=\"22\" rx=\"6.5\" fill=\"#fff\"/><path d=\"M7.5 8.5v5M11 6v10M14.5 9.5v3\" stroke=\"#0B1A3A\" stroke-width=\"1.9\" stroke-linecap=\"round\"/></svg>Talky</a><span class=\"ds-links\"><a href=\"#\">How it works</a><a href=\"#\">Pipes</a><a href=\"#\">Privacy</a></span><a class=\"ds-nav-cta\" href=\"#\">Download</a></nav></div>",
+      "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-nav{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);height:52px;border-radius:26px;padding:0 7px 0 18px;display:flex;align-items:center;gap:34px;font:400 14px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);white-space:nowrap;}.ds-brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:16px;color:#fff;text-decoration:none;letter-spacing:-.01em;}.ds-links{display:flex;gap:26px;}.ds-links a{color:var(--ink-2,rgba(255,255,255,.88));text-decoration:none;transition:color .2s;}.ds-links a:hover{color:#fff;}.ds-nav a:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:12px;}.ds-nav-cta{display:inline-flex;align-items:center;height:38px;padding:0 16px;border-radius:19px;background:#fff;color:var(--navy,#0B1A3A);font-weight:600;text-decoration:none;}.ds-nav-cta:hover{background:#EEF1FF;}"
+    },
+    {
+      "name": "The Pill (idle)",
+      "kind": "custom",
+      "refersTo": "pill",
+      "description": "Signature: the glass pill over the field, shown idle with its fixed slot beside the pipe chips. Red appears only while the mic is live.",
+      "html": "<div class=\"ds-field\"><div class=\"ds-slot\"><div class=\"ds-pill\" role=\"status\"><span class=\"ds-dot\" aria-hidden=\"true\"></span>Ready</div></div><div class=\"ds-chips\" role=\"radiogroup\" aria-label=\"Pipe\"><button class=\"ds-chip\" role=\"radio\" aria-checked=\"true\"><b>1</b>Clean</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>2</b>Formal</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>3</b>Bullets</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>0</b>Raw</button></div></div>",
+      "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-slot{width:272px;display:flex;justify-content:flex-end;}.ds-pill{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);height:56px;border-radius:28px;padding:8px 22px 8px 18px;display:flex;align-items:center;gap:14px;font:600 16px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:#fff;}.ds-pill .ds-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.5);flex:none;}.ds-chips{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);height:56px;border-radius:28px;padding:6px;display:flex;gap:4px;}.ds-chip{height:44px;border-radius:22px;padding:0 16px 0 8px;display:flex;gap:9px;align-items:center;font:500 15px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:var(--ink-2,rgba(255,255,255,.88));background:transparent;border:0;cursor:pointer;white-space:nowrap;transition:background-color .25s cubic-bezier(.16,1,.3,1),color .25s;}.ds-chip:hover{color:#fff;background:rgba(255,255,255,.08);}.ds-chip:focus-visible{outline:2px solid #fff;outline-offset:3px;}.ds-chip b{width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:13px;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.16);color:#fff;transition:background-color .25s;}.ds-chip[aria-checked=\"true\"]{background:rgba(255,255,255,.94);color:var(--navy,#0B1A3A);}.ds-chip[aria-checked=\"true\"] b{background:var(--select,#0A84FF);}"
+    },
+    {
+      "name": "Pipe Chips",
+      "kind": "chip",
+      "refersTo": "pipe-chip",
+      "description": "Numbered radio row in one glass capsule; the selected chip is white with a blue number badge.",
+      "html": "<div class=\"ds-field\"><div class=\"ds-chips\" role=\"radiogroup\" aria-label=\"Pipe\"><button class=\"ds-chip\" role=\"radio\" aria-checked=\"true\"><b>1</b>Clean</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>2</b>Formal</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>3</b>Bullets</button><button class=\"ds-chip\" role=\"radio\" aria-checked=\"false\"><b>0</b>Raw</button></div></div>",
+      "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-chips{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);height:56px;border-radius:28px;padding:6px;display:flex;gap:4px;}.ds-chip{height:44px;border-radius:22px;padding:0 16px 0 8px;display:flex;gap:9px;align-items:center;font:500 15px/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:var(--ink-2,rgba(255,255,255,.88));background:transparent;border:0;cursor:pointer;white-space:nowrap;transition:background-color .25s cubic-bezier(.16,1,.3,1),color .25s;}.ds-chip:hover{color:#fff;background:rgba(255,255,255,.08);}.ds-chip:focus-visible{outline:2px solid #fff;outline-offset:3px;}.ds-chip b{width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:13px;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.16);color:#fff;transition:background-color .25s;}.ds-chip[aria-checked=\"true\"]{background:rgba(255,255,255,.94);color:var(--navy,#0B1A3A);}.ds-chip[aria-checked=\"true\"] b{background:var(--select,#0A84FF);}"
+    },
+    {
+      "name": "Deep Glass Panel",
+      "kind": "card",
+      "refersTo": "deep-panel",
+      "description": "Glass that carries reading text, with a 0.42 navy floor. Label names the content, sentence case.",
+      "html": "<div class=\"ds-field\"><div class=\"ds-deep\"><p class=\"ds-label\">You said</p><p class=\"ds-quote\">“um so can we move tomorrow’s standup to like eleven, the design review runs late”</p></div></div>",
+      "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-deep{background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--rim,rgba(255,255,255,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.06),0 24px 60px -24px rgba(0,0,0,.55);background:linear-gradient(180deg,rgba(26,32,76,.46),rgba(12,18,46,.42));border-radius:24px;padding:28px 30px;max-width:460px;text-align:left;}.ds-label{margin:0;font:600 14px/1.55 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);letter-spacing:.01em;color:var(--ink-3,rgba(255,255,255,.84));}.ds-quote{margin:12px 0 0;font:400 22px/1.45 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:var(--ink-2,rgba(255,255,255,.88));}"
+    },
+    {
+      "name": "Keycap",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Inline key in running text.",
+      "html": "<div class=\"ds-field\"><p class=\"ds-line\">Hold <kbd class=\"ds-kbd\">fn</kbd>, say it, let go. Press <kbd class=\"ds-kbd\">esc</kbd> to cancel.</p></div>",
+      "css": ".ds-field{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:36px 28px;border-radius:16px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(55% 75% at 88% 8%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 70% at 6% 92%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(70% 70% at 55% 125%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(160deg,var(--navy,#0B1A3A) 0%,var(--indigo,#141A4A) 48%,#0A1230 100%);}.ds-line{margin:0;font:400 20px/1.55 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:var(--ink-2,rgba(255,255,255,.88));}.ds-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:1.9em;height:1.6em;padding:0 .45em;border-radius:.42em;font:600 .78em/1 var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);color:#fff;background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,.1));border:1px solid rgba(255,255,255,.26);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 2px 6px -2px rgba(0,0,0,.35);vertical-align:.08em;}"
+    },
+    {
+      "name": "Settings Header Band",
+      "kind": "custom",
+      "refersTo": "settings-header-band",
+      "description": "Native: the top of each Settings page, the field in an 18pt rounded rectangle with the idle pill preview. Approximated in CSS.",
+      "html": "<div class=\"ds-band\"><div><p class=\"ds-band-title\">Pipes</p><p class=\"ds-band-sub\">Press a number while you talk to pick a pipe. 0 is always the raw transcript.</p></div><div class=\"ds-prev\"><div class=\"ds-npill\"><span class=\"ds-ndot\"></span>Hold fn</div><div class=\"ds-nchips\"><span class=\"ds-nchip ds-on\"><b>1</b>Clean</span><span class=\"ds-nchip\"><b>2</b>Formal</span><span class=\"ds-nchip\"><b>3</b>Bullets</span><span class=\"ds-nchip\"><b>0</b>Raw</span></div></div></div>",
+      "css": ".ds-band{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px 24px;min-height:112px;padding:22px 26px;border-radius:18px;color:#fff;font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);background:radial-gradient(60% 140% at 92% 0%,rgba(107,75,255,.9),rgba(107,75,255,0) 70%),radial-gradient(50% 160% at 4% 100%,rgba(255,154,107,.75),rgba(255,154,107,0) 70%),radial-gradient(60% 160% at 55% 130%,rgba(30,91,255,.75),rgba(30,91,255,0) 70%),linear-gradient(135deg,#0B1A3A,#141A4A,#0A1230);}.ds-band-title{margin:0;font-size:26px;font-weight:700;letter-spacing:-.4px;line-height:1.15;}.ds-band-sub{margin:5px 0 0;font-size:14px;color:rgba(255,255,255,.8);}.ds-prev{display:flex;gap:8px;font-size:13px;font-weight:500;}.ds-npill,.ds-nchips{display:flex;align-items:center;border-radius:999px;background:rgba(0,0,0,.18);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);border:1px solid rgba(255,255,255,.22);}.ds-npill{gap:9px;height:38px;padding:0 14px;}.ds-ndot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);}.ds-nchips{gap:2px;padding:4px;}.ds-nchip{display:flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 4px;border-radius:999px;color:rgba(255,255,255,.85);}.ds-nchip b{min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.16);color:#fff;}.ds-nchip.ds-on{background:rgba(255,255,255,.94);color:#0B1A3A;}.ds-nchip.ds-on b{background:#0A84FF;}"
+    },
+    {
+      "name": "Settings Group",
+      "kind": "card",
+      "refersTo": "settings-group",
+      "description": "Native: a titled panel of label-left, control-right rows on the system control background. Approximated in CSS (light appearance).",
+      "html": "<div class=\"ds-sg-wrap\"><p class=\"ds-sg-title\">Dictation</p><div class=\"ds-sg\"><div class=\"ds-sg-row\"><span>Dictate</span><button class=\"ds-sg-pop\" type=\"button\">fn</button></div><div class=\"ds-sg-row\"><span>Language</span><button class=\"ds-sg-pop\" type=\"button\">Detect automatically</button></div><div class=\"ds-sg-row\"><span>Launch at login</span><button class=\"ds-sg-switch\" type=\"button\" role=\"switch\" aria-checked=\"true\" aria-label=\"Launch at login\"></button></div></div><p class=\"ds-sg-foot\">Keys stay on this Mac in ~/.config/talky/.env.</p></div>",
+      "css": ".ds-sg-wrap{font-family:var(--font, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif);font-size:13px;color:#1d1d1f;background:#f5f5f7;padding:20px;border-radius:12px;}.ds-sg-title{margin:0 0 8px;font-weight:600;}.ds-sg{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:4px 16px;}.ds-sg-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:30px;padding:8px 0;}.ds-sg-row+.ds-sg-row{border-top:1px solid rgba(0,0,0,.1);}.ds-sg-pop{font:inherit;background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:6px;padding:3px 10px;box-shadow:0 1px 1px rgba(0,0,0,.06);cursor:pointer;}.ds-sg-pop:hover{background:#f2f2f4;}.ds-sg-pop:focus-visible,.ds-sg-switch:focus-visible{outline:3px solid rgba(10,132,255,.5);outline-offset:1px;}.ds-sg-switch{width:38px;height:22px;border-radius:11px;border:0;background:#0A84FF;position:relative;cursor:pointer;}.ds-sg-switch::after{content:\"\";position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);}.ds-sg-foot{margin:8px 0 0;font-size:11px;color:rgba(0,0,0,.5);}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Apple's Own Glass",
+    "overview": "Talky looks like a part of the Mac. Every Talky surface is one material, glass, floating over one ground: a deep navy-to-indigo color field lit by three soft lights. The download page, the onboarding window, the Settings header band and the floating pill all use this same field and this same glass, so the product reads as one object wherever it appears. The world refuses the category default of a flat white page with a screenshot; retro and physical-object styles were also rejected.\n\nThe mood is calm, dark and lit from within. Density is low: large bold headlines with tight tracking, plain body text at a generous size, and capsules of glass for everything that can be pressed. Depth comes from blur, a thin white rim and a top specular line, not from heavy shadows or ruled boxes. Violet, blue and peach exist as light in the field, not as paint. The solid accents are few and each has one job: the white primary button, the selection blue, the live red.\n\nOne world, two platforms. The web draws glass with CSS backdrop blur and saturation. The app draws it with native Liquid Glass on macOS 26 and later, and with the ultra-thin material plus a light rim on macOS 14 and 15. In the app, system controls (pickers, toggles, secure fields, the Settings sidebar) keep their native styles; the world lends type, palette, glass and the pill.",
+    "keyCharacteristics": [
+      "One color field behind every Talky-world surface; glass is the only material on top of it.",
+      "White ink on dark glass. Secondary text is white at reduced opacity, never a gray.",
+      "Capsules for anything pressed or floating alone; rounded rectangles for containers.",
+      "SF Pro only, bold and tightly tracked at display sizes.",
+      "The pill, with its numbered pipe chips, appears on every surface.",
+      "Red means one thing: the microphone is live."
+    ],
+    "rules": [
+      {
+        "name": "The One Field Rule",
+        "body": "Every Talky-world surface sits on the same field: a navy, indigo, deep-field gradient (160° on the web, top-leading to bottom-trailing in the app) lit by violet at the top right, peach at the lower left and blue from below. The radial light is the ground of the world, not an accent glow. On the web the field is fixed behind the page and its three lights drift slowly (38 s, 46 s and 52 s, alternating); with reduced motion they stand still.",
+        "section": "colors"
+      },
+      {
+        "name": "The Light, Not Paint Rule",
+        "body": "Violet, blue and peach are light inside the field. On glass surfaces they never become text, button fills, borders or card tints.",
+        "section": "colors"
+      },
+      {
+        "name": "The Live Wire Rule",
+        "body": "Live Red appears only while the microphone is live: the pill's recording dot, which pulses. Still previews, buttons, badges and errors never use it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Blue Means Chosen Rule",
+        "body": "Selection Blue marks the selected pipe and the action that moves forward. It is never decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Platform Voice Rule",
+        "body": "SF Pro is the only family, on both platforms. No second display face, no webfont.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tight Top Rule",
+        "body": "Bold display type tracks tighter as it grows: -0.02em to -0.035em on the web, -0.4pt to -0.6pt in the app. Body text never tracks below -0.01em.",
+        "section": "typography"
+      },
+      {
+        "name": "The Steady Numbers Rule",
+        "body": "Numbers that change or line up use tabular figures: the pill timer and every key badge.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fixed Slot Rule",
+        "body": "On the web the pill sits in a 272px slot, right-aligned against the chips and as wide as its Listening state, so the chips never move when the pill changes state. Below 760px the slot spans the row and centers the pill.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Column Rule",
+        "body": "Both Settings pages pad their content 20pt on every side. The header band, the groups and the pipe rows share those column edges, so changing pages never shifts the layout. General stacks its groups 26pt apart; Pipes stacks its parts 16pt apart and its pipe rows 12pt apart. In the header band the title sits left and the pill preview right; when the window is narrow the pill moves under the title.",
+        "section": "layout"
+      },
+      {
+        "name": "The Soft Shadow Rule",
+        "body": "Drop shadows are long and blurred. No hard, zero-blur offset shadows. The 1px inset specular line at the top of glass is part of the material, not a shadow to remove.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Deep Glass Rule",
+        "body": "Reading text in a panel sits on deep glass, never on light glass: a navy-indigo fill from 46% at the top to a 42% floor behind the text. The floor keeps white text at 4.5:1 over the peach light. The demo window may fade its fill to 14% only below the text, so the field shows through the empty part. Light glass is for chrome and controls: the nav, buttons, the pill, chips and key caps.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Veil Rule",
+        "body": "Native glass that floats over other apps (the pill, its chips, the processing and message capsules, the transform picker) carries the navy tint inside the glass and the navy veil over it. Liquid Glass turns light over white documents even when tinted; the veil keeps white text readable. Glass inside Talky's own windows, which always sit on the field, uses a black 15-18% tint and no veil.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Idle Preview Rule",
+        "body": "Every still picture of the pill shows the idle state: a white 50% dot, \"Hold fn\" (or the user's hotkey), no waveform, no red. The red dot belongs only to a pill that is actually recording, or to the web demo while it runs.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do put every Talky-world surface (the web page, the onboarding window, the Settings header band, pill previews) on the one color field.",
+      "Do put reading text in panels on deep glass with its 42% navy floor; keep light glass for the nav, buttons, the pill, chips and key caps.",
+      "Do draw native glass through the shared glass modifier: Liquid Glass with a tint on macOS 26 and later, the ultra-thin material with a 22% white rim and a soft shadow before that.",
+      "Do add the navy veil to any native glass that floats over other apps.",
+      "Do show the idle pill in every still preview.",
+      "Do keep the web pill in its fixed 272px slot so the chips never move.",
+      "Do keep the filler strike: mark \"um\", \"so\" and \"like\", strike them for 900 ms, then fade and settle.",
+      "Do keep both Settings pages on the shared 20pt column, with the header band on top and Settings groups below.",
+      "Do leave native controls in their system styles; in Settings the field stays inside the header band.",
+      "Do stop the field drift, the caret blink and the settle animation under reduced motion."
+    ],
+    "donts": [
+      "Don't use Live Red for anything except the dot of a live microphone.",
+      "Don't use hard, zero-blur offset shadows.",
+      "Don't put reading text on light glass or on a fill below the 42% deep-glass floor.",
+      "Don't use violet, blue or peach as text, fills, borders or card tints on glass surfaces; they are light in the field.",
+      "Don't use the field's radial lights as glows on cards or buttons.",
+      "Don't add a second typeface or a display font; SF Pro is the voice."
+    ]
+  }
+}

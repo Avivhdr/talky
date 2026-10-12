@@ -7,7 +7,6 @@ ID=dev.talky.Talky
 CONFIG="${TALKY_CONFIG_DIR:-$HOME/.config/talky}"
 
 pkill -x Talky 2>/dev/null
-pkill -f "$CONFIG/models" 2>/dev/null   # a whisper-server Talky started
 tccutil reset All "$ID" >/dev/null
 defaults delete "$ID" 2>/dev/null
 rm -rf "/Applications/Talky.app" "$HOME/Applications/Talky.app" \

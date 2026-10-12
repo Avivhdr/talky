@@ -52,6 +52,7 @@ public enum TextIO {
     /// Selected text in the focused app. Tries Accessibility first, then falls back to Cmd-C
     /// (and restores the clipboard) for apps that don't expose AXSelectedText, such as many Electron apps.
     public static func selectedText() async -> String? {
+        if NSApp.isActive { return ownSelectedText() }
         if let s = axSelectedText(), !s.isEmpty { return s }
 
         let pb = NSPasteboard.general
@@ -69,6 +70,15 @@ public enum TextIO {
         if pb.changeCount != before { snapshot.restore(pb) }
         guard let copied, !copied.isEmpty else { return nil }
         return copied
+    }
+
+    /// The selection in one of Talky's own windows, such as the onboarding try box.
+    /// Talky answers Accessibility requests on its main thread, so asking itself from here could block.
+    /// Single-line fields are left out: one of them is the API key field.
+    static func ownSelectedText() -> String? {
+        guard let view = NSApp.keyWindow?.firstResponder as? NSTextView, !view.isFieldEditor else { return nil }
+        let text = (view.string as NSString).substring(with: view.selectedRange())
+        return text.isEmpty ? nil : text
     }
 
     static func axSelectedText() -> String? {
@@ -93,16 +103,36 @@ public enum TextIO {
 }
 
 public enum Permissions {
+    // No Input Monitoring: the hotkey tap is an active one, and Accessibility covers it.
     public static var accessibility: Bool { AXIsProcessTrusted() }
-    public static var inputMonitoring: Bool { CGPreflightListenEventAccess() }
     public static var microphone: Bool { AVCaptureDevice.authorizationStatus(for: .audio) == .authorized }
+
+    public static var microphoneUndecided: Bool { AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined }
+
+    /// What to tell the user when the microphone can't record, or nil when it can.
+    /// Without access macOS records silence, so Talky must check before it records.
+    public static var microphoneProblem: String? {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized: return nil
+        case .notDetermined: return "Allow the microphone, then try again"
+        default: return "Talky needs microphone access"
+        }
+    }
+
+    /// The system prompt the first time; after the user has answered, only System Settings can change it.
+    @MainActor
+    public static func requestMicrophone() {
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+            Task { _ = await AudioRecorder.requestPermission() }
+        } else {
+            openSettings("Privacy_Microphone")
+        }
+    }
 
     public static func promptAccessibility() {
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(opts)
     }
-
-    public static func promptInputMonitoring() { _ = CGRequestListenEventAccess() }
 
     public static func openSettings(_ pane: String) {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
