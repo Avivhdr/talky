@@ -446,10 +446,8 @@ struct PermissionRows: View {
 
     var body: some View {
         row("Microphone", "To hear you.", "mic.fill", .orange, state.mic) { Permissions.requestMicrophone() }
-        // Talky is already in this list: its key monitor tries to start at launch, and that adds it.
-        // So Allow only opens System Settings, without the system prompt on top of it.
         row("Accessibility", "To notice the Talky keys and type for you.", "accessibility", .blue, state.accessibility) {
-            Permissions.openSettings("Privacy_Accessibility")
+            Permissions.requestAccessibility()
         }
     }
 
