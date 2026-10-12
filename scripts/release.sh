@@ -142,7 +142,7 @@ git add "$INFO" web
 git commit -m "release: $TAG (build $BUILD)"
 git push
 
-echo "Waiting for $TALKY_SITE to serve build $BUILD…"
+echo "Waiting for $TALKY_SITE to serve build ${BUILD}…"
 LIVE=false
 for _ in $(seq 60); do
   if curl -fsS --max-time 10 "$TALKY_SITE/appcast.xml" 2>/dev/null | grep -q "<sparkle:version>$BUILD</sparkle:version>"; then
