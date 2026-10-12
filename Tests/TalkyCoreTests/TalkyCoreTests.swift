@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import TalkyCore
 
@@ -198,5 +199,37 @@ final class EnvWriteTests: XCTestCase {
         Env.set("ANTHROPIC_API_KEY", "")
         XCTAssertNil(Env.value("ANTHROPIC_API_KEY"))
         XCTAssertEqual(Env.value("FIRST_KEY"), "new")
+    }
+}
+
+final class FittingTextHeightTests: XCTestCase {
+    let font = NSFont.systemFont(ofSize: 13)
+    let width: CGFloat = 460
+
+    func height(_ text: String, width: CGFloat = 460) -> CGFloat {
+        FittingTextHeight.height(text: text, width: width, font: font, inset: FittingTextHeight.inset)
+    }
+
+    func testEmptyFieldIsOneLine() {
+        let empty = height("")
+        let one = height("Rewrite this text.")
+        XCTAssertEqual(empty, one, accuracy: 0.5)
+        XCTAssertGreaterThan(empty, FittingTextHeight.inset * 2)
+    }
+
+    func testEachNewLineAddsOneLine() {
+        let one = height("Hello")
+        let two = height("Hello\nHello")
+        let three = height("Hello\nHello\nHello")
+        let step = two - one
+        XCTAssertGreaterThan(step, 8)
+        XCTAssertEqual(three - two, step, accuracy: 1)
+    }
+
+    func testNarrowWidthIsTallerThanWideWidth() {
+        let paragraph = String(repeating: "word ", count: 40)
+        let narrow = height(paragraph, width: 180)
+        let wide = height(paragraph, width: 900)
+        XCTAssertGreaterThan(narrow, wide)
     }
 }

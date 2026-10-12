@@ -663,11 +663,8 @@ struct PipeRow: View {
                 }
                 .buttonStyle(.borderless)
             }
-            TextEditor(text: pipe.prompt)
-                .font(.body)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .frame(minHeight: 130)
+            // The field is only as tall as the prompt. It grows when the text grows, so every line stays visible.
+            FittingTextEditor(text: pipe.prompt, label: "Prompt")
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(nsColor: .textBackgroundColor)))
                 .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.primary.opacity(0.1)))
         }
@@ -705,9 +702,155 @@ struct PipeRow: View {
                 }
             }
             .textSelection(.enabled)
-            .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
         }
+    }
+}
+
+/// A plain text field that stays as tall as its text.
+/// The field grows and shrinks with the text, so the user always sees every line.
+struct FittingTextEditor: View {
+    @Binding var text: String
+    var label: String
+    @State private var width: CGFloat = 0
+
+    private var fieldHeight: CGFloat {
+        FittingTextHeight.height(text: text, width: width, font: FittingTextHeight.font, inset: FittingTextHeight.inset)
+    }
+
+    var body: some View {
+        FittingTextNSView(text: $text, label: label, width: width)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            // Once the column width is known, lock the field to the text height.
+            // Before that, sizeThatFits uses the width SwiftUI proposes.
+            .frame(height: width > 1 ? fieldHeight : nil)
+            .background(GeometryReader { geo in
+                Color.clear.preference(key: FieldWidthKey.self, value: geo.size.width)
+            })
+            .onPreferenceChange(FieldWidthKey.self) { newWidth in
+                if newWidth > 1, abs(newWidth - width) > 0.5 { width = newWidth }
+            }
+    }
+}
+
+private struct FieldWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 { value = next }
+    }
+}
+
+private struct FittingTextNSView: NSViewRepresentable {
+    @Binding var text: String
+    var label: String
+    var width: CGFloat
+
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let textView = NSTextView()
+        textView.delegate = context.coordinator
+        textView.isRichText = false
+        textView.importsGraphics = false
+        textView.allowsUndo = true
+        textView.drawsBackground = false
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainerInset = NSSize(width: FittingTextHeight.inset, height: FittingTextHeight.inset)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainer?.widthTracksTextView = false
+        textView.textContainer?.heightTracksTextView = false
+        textView.minSize = .zero
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.font = FittingTextHeight.font
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .labelColor
+        textView.string = text
+        textView.setAccessibilityLabel(label)
+
+        let scroll = NSScrollView()
+        scroll.drawsBackground = false
+        scroll.backgroundColor = .clear
+        scroll.borderType = .noBorder
+        scroll.hasVerticalScroller = false
+        scroll.hasHorizontalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.automaticallyAdjustsContentInsets = false
+        scroll.contentInsets = NSEdgeInsets()
+        scroll.verticalScrollElasticity = .none
+        scroll.horizontalScrollElasticity = .none
+        scroll.focusRingType = .none
+        scroll.documentView = textView
+        scroll.contentView.drawsBackground = false
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        context.coordinator.text = $text
+        guard let textView = scroll.documentView as? NSTextView else { return }
+        textView.setAccessibilityLabel(label)
+        let font = FittingTextHeight.font
+        if textView.font?.fontName != font.fontName || textView.font?.pointSize != font.pointSize {
+            textView.font = font
+        }
+        if textView.string != text {
+            textView.string = text
+        }
+        // Wrap at the same width the field height was measured with.
+        let liveWidth = width > 1 ? width : scroll.bounds.width
+        guard liveWidth > 1, let container = textView.textContainer else { return }
+        let textWidth = max(1, liveWidth - FittingTextHeight.inset * 2)
+        if abs(container.containerSize.width - textWidth) > 0.5 {
+            container.containerSize = NSSize(width: textWidth, height: CGFloat.greatestFiniteMagnitude)
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
+        let proposed = proposal.width ?? nsView.bounds.width
+        guard proposed.isFinite, proposed > 1 else { return nil }
+        let height = FittingTextHeight.height(text: context.coordinator.text.wrappedValue, width: proposed, font: FittingTextHeight.font, inset: FittingTextHeight.inset)
+        return CGSize(width: proposed, height: height)
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var text: Binding<String>
+        init(text: Binding<String>) { self.text = text }
+
+        func textDidChange(_ notification: Notification) {
+            guard let view = notification.object as? NSTextView else { return }
+            if text.wrappedValue != view.string {
+                text.wrappedValue = view.string
+            }
+        }
+    }
+}
+
+/// Height of a fitting text field at a given width. An empty field is one line tall.
+enum FittingTextHeight {
+    static let inset: CGFloat = 8
+    static var font: NSFont { .preferredFont(forTextStyle: .body) }
+
+    static func height(text: String, width: CGFloat, font: NSFont, inset: CGFloat) -> CGFloat {
+        let textWidth = max(1, width - inset * 2)
+        let sample = text.isEmpty ? " " : text
+        let storage = NSTextStorage(string: sample)
+        let range = NSRange(location: 0, length: storage.length)
+        storage.addAttribute(.font, value: font, range: range)
+        storage.addAttribute(.paragraphStyle, value: NSParagraphStyle.default, range: range)
+        let container = NSTextContainer(size: NSSize(width: textWidth, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        let manager = NSLayoutManager()
+        manager.addTextContainer(container)
+        storage.addLayoutManager(manager)
+        manager.ensureLayout(for: container)
+        let used = manager.usedRect(for: container)
+        let line = manager.defaultLineHeight(for: font)
+        return max(ceil(used.height), ceil(line)) + inset * 2
     }
 }
