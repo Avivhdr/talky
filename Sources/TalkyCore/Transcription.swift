@@ -8,6 +8,8 @@ public final class TranscriptionService: @unchecked Sendable {
     private let queue = DispatchQueue(label: "dev.talky.whisper", qos: .userInitiated)
     private var context: OpaquePointer?
     private var contextModel: URL?
+    /// Set by unload: no model loads after it.
+    private var isClosed = false
 
     public init() {
         // whisper.cpp logs every model load and decode to stderr.
@@ -30,7 +32,19 @@ public final class TranscriptionService: @unchecked Sendable {
         }
     }
 
+    /// Frees the model. Call it before the app exits: at exit whisper.cpp aborts the process when
+    /// Metal memory it gave out is still in use. Waits for a transcription in progress, so cancel that first.
+    public func unload() {
+        queue.sync {
+            isClosed = true
+            if let context { whisper_free(context) }
+            context = nil
+            contextModel = nil
+        }
+    }
+
     private func loadContext(_ c: Config.Transcription) throws -> OpaquePointer {
+        if isClosed { throw CancellationError() }
         let url = SpeechModel.url(for: c.model)
         if let context, contextModel == url { return context }
         guard FileManager.default.fileExists(atPath: url.path) else {

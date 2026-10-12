@@ -219,6 +219,15 @@ public final class Controller: KeyMonitorDelegate {
         abortRecording()
     }
 
+    /// Stops what is in flight and frees the speech model, before the app exits.
+    public func shutDown() {
+        work?.cancel()
+        work = nil
+        stopTicking()
+        recorder.cancel()
+        transcription.unload()
+    }
+
     // MARK: Recording
 
     /// Why Talky can't record now, or nil when it can.

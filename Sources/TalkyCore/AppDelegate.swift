@@ -65,6 +65,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
         }
     }
 
+    public func applicationWillTerminate(_ notification: Notification) {
+        controller.shutDown()
+    }
+
     private func apply(_ config: Config) {
         keyMonitor.mainSpec = HotkeySpec.parse(config.hotkey)
         keyMonitor.transformSpec = HotkeySpec.parse(config.transformHotkey)
