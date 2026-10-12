@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Talky</title>
+        <item>
+            <title>0.2.0</title>
+            <pubDate>Mon, 12 Oct 2026 13:29:57 +0200</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://usetalky.vercel.app/downloads/Talky-0.2.0.zip" length="8564559" type="application/octet-stream" sparkle:edSignature="QsO8vxdxrQi/ElZdSJuM4Cwa+Qq7Ks6vgJ6Dk36Y4ZY9tL/Ij125AC4CxUtKjQxNK0WMwPmxhR5nrwofD2rZDw=="/>
+        </item>
+    </channel>
+</rss>
