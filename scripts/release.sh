@@ -9,8 +9,8 @@
 # app, notarizes it, writes the update zip, appcast and DMG into web/, commits both version halves
 # in one commit, pushes (Vercel project "usetalky" deploys web/) and creates a GitHub release.
 #
-# Where updates live: the GitHub repo is private, so its release assets 404 for Sparkle. The feed
-# and the binaries ride the website instead. The GitHub release is only an archive.
+# Where updates live: installed copies check the feed URL they were built with. The feed and the
+# binaries stay on the website. The GitHub release is only an archive. Do not point the feed at GitHub.
 #   Feed (built into every copy, never move it):  $TALKY_SITE/appcast.xml
 #   Update zip (named by the feed, can move):     $TALKY_SITE/downloads/Talky-<version>.zip
 #   First install (the website links it):        $TALKY_SITE/downloads/Talky-latest.dmg

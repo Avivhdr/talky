@@ -46,7 +46,7 @@ It works in every app, with one key, and has no account and no telemetry. Pipes 
 
 - Real behavior and copy in `README.md` and `web/index.html`.
 - No testimonials, user counts, benchmarks, press, or screenshots exist. Do not invent them.
-- Pricing: the app is free and open source (`github.com/Avivhdr/talky`); Anthropic bills the user for pipe usage.
+- Pricing: the app is free and open source under the MIT License (`github.com/Avivhdr/talky`); Anthropic bills the user for pipe usage.
 
 ## Product Principles
 
