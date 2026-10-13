@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Talky: hold a key, talk, let go</title>
-<meta name="description" content="Menu bar dictation for macOS. Hold fn, talk, and the text appears wherever your cursor is.">
+<meta name="description" content="Menu bar dictation for macOS. Hold fn, talk, and the text appears wherever your cursor is. Add an Anthropic key to run pipes on what you say or on text you select.">
 <meta name="theme-color" content="#0B1A3A">
 <meta name="color-scheme" content="dark">
 <style>
@@ -135,6 +135,16 @@
   h2 { font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; letter-spacing: -.03em; font-weight: 700; text-wrap: balance; }
   .intro { font-size: 20px; color: var(--ink-2); margin-top: 18px; max-width: 36em; text-wrap: pretty; }
 
+  .modes { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .mode { border-radius: 24px; padding: 28px 30px; display: flex; flex-direction: column; align-items: flex-start; }
+  .tag { height: 28px; padding: 0 12px; border-radius: 9999px; display: inline-flex; align-items: center; font: 600 13px/1 var(--font); background: rgba(255, 255, 255, .16); color: var(--ink); }
+  .tag.free { background: rgba(255, 255, 255, .94); color: var(--navy); }
+  .mode h3 { margin-top: 20px; font-size: clamp(24px, 2.6vw, 32px); letter-spacing: -.02em; line-height: 1.15; font-weight: 700; }
+  .mode p { margin-top: 12px; color: var(--ink-2); }
+  .mode a { margin-top: auto; padding-top: 20px; font-size: 14px; color: var(--ink-2); }
+  .mode a:hover { color: var(--ink); }
+  .sel { background: var(--select); color: #fff; border-radius: 3px; padding: 0 .1em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
   .keys { margin-top: 48px; border-radius: 24px; padding: 8px 32px; }
   .keyrow { display: grid; grid-template-columns: minmax(220px, 34%) 1fr; gap: 24px; padding: 22px 0; align-items: baseline; }
   .keyrow + .keyrow { border-top: 1px solid var(--hair); }
@@ -147,7 +157,7 @@
   .said .quote { font-size: 22px; line-height: 1.45; margin-top: 12px; color: var(--ink-2); }
   .result .chips { margin-top: 14px; display: inline-flex; flex-wrap: wrap; height: auto; border-radius: 9999px; }
   .result .text { margin-top: 22px; font-size: 22px; line-height: 1.5; white-space: pre-line; min-height: 7.5em; }
-  .transform { margin-top: 24px; font-size: 17px; color: var(--ink-2); max-width: 46em; }
+  #rewrite .result .text { min-height: 0; margin-top: 12px; }
 
   .facts { margin-top: 56px; display: grid; gap: 0; }
   .fact { display: grid; grid-template-columns: minmax(240px, 40%) 1fr; gap: 24px; padding: 28px 0; border-top: 1px solid var(--hair); align-items: baseline; }
@@ -179,7 +189,8 @@
     section.block { padding-top: 96px; }
     .keys, .needs { padding: 4px 20px; }
     .keyrow, .fact { grid-template-columns: 1fr; gap: 6px; }
-    .pipes { grid-template-columns: 1fr; }
+    .pipes, .modes { grid-template-columns: 1fr; }
+    .mode { padding: 22px 20px; }
     .said, .result { padding: 22px 20px; }
     .close { padding-top: 112px; }
   }
@@ -197,7 +208,7 @@
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="6.5" fill="#fff"/><path d="M7.5 8.5v5M11 6v10M14.5 9.5v3" stroke="#0B1A3A" stroke-width="1.9" stroke-linecap="round"/></svg>
     Talky
   </a>
-  <div class="nav-links"><a href="#how">How it works</a><a href="#pipes">Pipes</a><a href="#privacy">Privacy</a></div>
+  <div class="nav-links"><a href="#modes">What it does</a><a href="#pipes">Pipes</a><a href="#privacy">Privacy</a></div>
   <a class="btn solid small" href="/downloads/Talky-latest.dmg">Download</a>
 </nav>
 
@@ -234,6 +245,31 @@
     </div>
   </header>
 
+  <section class="block wrap" id="modes" aria-labelledby="modes-h">
+    <h2 id="modes-h">Three things Talky does.</h2>
+    <p class="intro">Dictation works the moment you install it. Add an Anthropic API key and two more open up.</p>
+    <div class="modes">
+      <article class="mode glass deep">
+        <span class="tag free">No key needed</span>
+        <h3>Dictate</h3>
+        <p>Hold <kbd>fn</kbd>, talk, let go. Talky types what you said wherever your cursor is. Speech turns into text on your Mac, free and offline.</p>
+        <a href="#how">The keys</a>
+      </article>
+      <article class="mode glass deep">
+        <span class="tag">Anthropic key</span>
+        <h3>Dictate through a pipe</h3>
+        <p>Press a number while you talk. Claude cleans it up, makes it formal or turns it into bullets, and then Talky types it.</p>
+        <a href="#pipes">See pipes</a>
+      </article>
+      <article class="mode glass deep">
+        <span class="tag">Anthropic key</span>
+        <h3>Rewrite selected text</h3>
+        <p>Select text in any app and tap right <kbd>⌥</kbd>. Pick a pipe, or hold <kbd>fn</kbd> and say what you want. Talky replaces the selection.</p>
+        <a href="#rewrite">See a rewrite</a>
+      </article>
+    </div>
+  </section>
+
   <section class="block wrap" id="how" aria-labelledby="how-h">
     <h2 id="how-h">One key. Any app.</h2>
     <p class="intro">Talky lives in the menu bar. It watches only its own keys, so everything else still reaches the app you are typing in.</p>
@@ -248,7 +284,7 @@
 
   <section class="block wrap" id="pipes" aria-labelledby="pipes-h">
     <h2 id="pipes-h">Say it once. Pick how it lands.</h2>
-    <p class="intro">Pipes are optional. Add an Anthropic API key and Claude rewrites what you said before Talky types it. Talky comes with three, and you can write your own in Settings.</p>
+    <p class="intro">Pipes need an Anthropic API key. Claude rewrites what you said before Talky types it. Talky comes with three, and you can write your own in Settings.</p>
     <div class="pipes">
       <div class="said glass deep">
         <p class="label">You said</p>
@@ -260,7 +296,21 @@
         <p class="text" id="pipe-text" aria-live="polite"></p>
       </div>
     </div>
-    <p class="transform">Already wrote something? Select it, tap right <kbd>⌥</kbd>, and press a number. Or hold <kbd>fn</kbd> and say what you want, like “make this friendlier” or “translate to Spanish”.</p>
+  </section>
+
+  <section class="block wrap" id="rewrite" aria-labelledby="rewrite-h">
+    <h2 id="rewrite-h">Fix what you already wrote.</h2>
+    <p class="intro">Your pipes also work on text you select, in any app. Select it, tap right <kbd>⌥</kbd> and press a number. Or hold <kbd>fn</kbd> and say what you want, like “make this friendlier” or “translate to Spanish”. This uses your Anthropic key too.</p>
+    <div class="pipes">
+      <div class="said glass deep">
+        <p class="label">You selected, then said “make this friendlier”</p>
+        <p class="quote"><span class="sel">Send me the numbers by Friday.</span></p>
+      </div>
+      <div class="result glass deep">
+        <p class="label">Talky replaced it with</p>
+        <p class="text">Could you send me the numbers by Friday? Thanks so much!</p>
+      </div>
+    </div>
   </section>
 
   <section class="block wrap" id="privacy" aria-labelledby="privacy-h">
@@ -278,7 +328,7 @@
     <dl class="needs glass deep">
       <div class="keyrow"><dt>A Mac</dt><dd>macOS 14 or later, Apple silicon or Intel. Talky updates itself.</dd></div>
       <div class="keyrow"><dt>574 MB of space</dt><dd>For the Whisper speech model. Talky downloads it once, during setup.</dd></div>
-      <div class="keyrow"><dt><a href="https://console.anthropic.com/settings/keys">An Anthropic API key</a></dt><dd>Optional, for pipes. Without it, Talky types exactly what you said.</dd></div>
+      <div class="keyrow"><dt><a href="https://console.anthropic.com/settings/keys">An Anthropic API key</a></dt><dd>Optional. It turns on pipes, for what you say and for text you select. Without it, Talky types exactly what you said.</dd></div>
     </dl>
   </section>
 
