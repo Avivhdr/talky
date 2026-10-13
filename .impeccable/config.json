@@ -29,6 +29,15 @@
         ],
         "createdAt": "2026-10-10T19:43:57.871Z",
         "reason": "user chose the Liquid Glass direction from a preview showing this color field; the soft violet/peach/blue radial light is the world's ground per the direction contract, not an accent glow"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "web/index.html"
+        ],
+        "createdAt": "2026-10-13T19:49:38.555Z",
+        "reason": "DESIGN.md select token. The rewrite demo paints a macOS text selection: white type on #0A84FF. This pair has no extractable ignore value."
       }
     ]
   }

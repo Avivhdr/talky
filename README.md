@@ -7,7 +7,7 @@ It works in two layers:
 - **Dictation.** Speech turns into text on your Mac with Whisper (whisper.cpp ships inside the app). It's free, works offline, and your audio never leaves the Mac.
 - **Pipes**, optional. Add an Anthropic API key and Claude also rewrites what you said before Talky types it: strips the "um"s, makes it formal, turns it into bullets.
 
-No accounts and no telemetry.
+No accounts and no telemetry. Talky is free and open source, under the [MIT License](LICENSE). The source is at <https://github.com/Avivhdr/talky>.
 
 ## What it does
 
@@ -111,7 +111,7 @@ Talky watches the folder, so saving `config.json` in an editor applies immediate
   },
   "llm": {
     "enabled": true,                  // false: always paste the raw transcript
-    "model": "claude-opus-5-5",
+    "model": "claude-haiku-4-5-20251001",
     "effort": "low",
     "timeoutSeconds": 30
   },
@@ -205,11 +205,21 @@ Resources/
 
 ## Releasing
 
-In Claude Code, `/release` cuts a release (`/release minor`, `/release 1.2.0`, or `/release dry-run`). It follows `.claude/skills/release/SKILL.md`: bump the version, run the script, then check the live feed and downloads.
+Cut a release from a clean `main`. Bump `CFBundleShortVersionString` in `Resources/Info.plist`, leave that change uncommitted, and run `scripts/release.sh`. The checklist in `.claude/skills/release/SKILL.md` is the same work.
 
-`scripts/release.sh` publishes a version. Bump `CFBundleShortVersionString` in `Resources/Info.plist`, leave the change uncommitted, and run it from `main`. It runs the tests, bumps the build number, builds a universal app signed with your Developer ID, notarizes it, and writes three files into `web/`: the Sparkle update zip, `appcast.xml` and `Talky-latest.dmg`. Then it commits both version numbers, pushes, waits until the site serves the new appcast, checks that the served zip has the length the appcast names, and creates a GitHub release.
+`scripts/release.sh` runs the tests, bumps the build number, builds a universal app signed with your Developer ID, notarizes it, and writes three files into `web/`: the Sparkle update zip, `appcast.xml` and `Talky-latest.dmg`. Then it commits both version numbers, pushes, waits until the site serves the new appcast, checks that the served zip has the length the appcast names, and creates a GitHub release.
 
 `scripts/release.sh --dry-run` does the build, signing and notarization into `dist/web-preview/` and stops there. It commits and publishes nothing, and puts the build number back.
 
-`web/` is the website. The Vercel project `usetalky` serves it at https://usetalky.vercel.app, with root directory `web/`. `scripts/release.sh` uses that address as `TALKY_SITE`. A push to `main` updates the site after GitHub repo `Avivhdr/talky` is connected to that project. The setup steps (certificate, notary profile, Sparkle key) are at the top of the script. Keep this address and the Sparkle key. Every installed copy reads its feed URL and public key from its own Info.plist, so a change to either one stops updates for those copies.
+`web/` is the website. The Vercel project `usetalky` serves it at https://usetalky.vercel.app, with root directory `web/`. `scripts/release.sh` uses that address as `TALKY_SITE`. A push to `main` updates the site. The setup steps (certificate, notary profile, Sparkle key) are at the top of the script. Keep this address and the Sparkle key. Every installed copy reads its feed URL and public key from its own Info.plist, so a change to either one stops updates for those copies. The GitHub release is an archive. Installed copies check the website.
+
+## Contributing
+
+Open an issue or a pull request. `swift test` runs the tests. `scripts/build-app.sh` builds the app. Do not put an API key in an issue.
+
+## License
+
+Talky is released under the MIT License. See [LICENSE](LICENSE).
+
+The speech engine is [whisper.cpp](https://github.com/ggml-org/whisper.cpp), under the MIT License. Updates use [Sparkle](https://github.com/sparkle-project/Sparkle), under the MIT License. Those projects keep their own copyrights.
 
