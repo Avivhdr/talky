@@ -184,12 +184,13 @@ struct TapHotkey {
         return true
     }
 
-    /// A key came up. Returns nil when it isn't this chord's key, else whether the chord fired.
+    /// A key came up. Returns true when it ends a press of this chord, which then fires, else nil.
     /// It fires on release, so the chord's modifiers are up before Talky copies or types.
+    /// The chord's key pressed without its modifiers returns nil, so its key-up reaches the app with its key-down.
     mutating func keyUp(code: Int64) -> Bool? {
-        guard case let .chord(k, _)? = spec, code == k else { return nil }
-        defer { chordDown = false }
-        return chordDown
+        guard case let .chord(k, _)? = spec, code == k, chordDown else { return nil }
+        chordDown = false
+        return true
     }
 
     mutating func reset() {
@@ -357,11 +358,9 @@ public final class KeyMonitor {
 
         case .keyUp:
             if swallowedKeyUps.remove(code) != nil { return true }
-            if case let .chord(k, _)? = mainSpec, code == k {
-                if mainDown {
-                    mainDown = false
-                    async { $0.mainHotkeyUp() }
-                }
+            if case let .chord(k, _)? = mainSpec, code == k, mainDown {
+                mainDown = false
+                async { $0.mainHotkeyUp() }
                 return true
             }
             if let fired = transformTap.keyUp(code: code) {

@@ -101,9 +101,15 @@ final class HotkeyCaptureTests: XCTestCase {
         XCTAssertTrue(t.keyDown(code: 4, flags: mods, isRepeat: false))
         XCTAssertTrue(t.keyDown(code: 4, flags: mods, isRepeat: true))
         XCTAssertEqual(t.keyUp(code: 4), true)
-        XCTAssertEqual(t.keyUp(code: 4), false, "one press fires once")
+        XCTAssertNil(t.keyUp(code: 4), "one press fires once")
         XCTAssertNil(t.keyUp(code: 5))
         XCTAssertFalse(t.keyDown(code: 4, flags: .maskControl, isRepeat: false), "⌃H alone is not the chord")
+    }
+
+    func testTapHotkeyPassesThePlainKeyUp() {
+        var t = TapHotkey(spec: HotkeySpec.parse("ctrl+z"))
+        XCTAssertFalse(t.keyDown(code: 6, flags: [], isRepeat: false))
+        XCTAssertNil(t.keyUp(code: 6), "a plain Z's key-up reaches the app")
     }
 
     func testSameKeyUnderTwoNames() {
