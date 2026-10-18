@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Talky: hold a key, talk, let go</title>
-<meta name="description" content="Menu bar dictation for macOS. Hold fn, talk, and the text appears wherever your cursor is. Add an Anthropic key to run pipes on what you say or on text you select.">
+<meta name="description" content="Menu bar dictation for macOS. Hold fn, talk, and the text appears wherever your cursor is. Saved dictations keeps each recording if the cursor was not in a text field. Add an Anthropic key to run pipes on what you say or on text you select.">
 <meta name="theme-color" content="#0B1A3A">
 <meta name="color-scheme" content="dark">
 <style>
@@ -166,7 +166,7 @@
   .said .quote { font-size: 22px; line-height: 1.45; margin-top: 12px; color: var(--ink-2); }
   .result .chips { margin-top: 14px; display: inline-flex; flex-wrap: wrap; height: auto; border-radius: 9999px; }
   .result .text { margin-top: 22px; font-size: 22px; line-height: 1.5; white-space: pre-line; min-height: 7.5em; }
-  #rewrite .result .text { min-height: 0; margin-top: 12px; }
+  #rewrite .result .text, #saved .result .text { min-height: 0; margin-top: 12px; }
 
   .facts { margin-top: 56px; display: grid; gap: 0; }
   .fact { display: grid; grid-template-columns: minmax(240px, 40%) 1fr; gap: 24px; padding: 28px 0; border-top: 1px solid var(--hair); align-items: baseline; }
@@ -217,7 +217,7 @@
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="6.5" fill="#fff"/><path d="M7.5 8.5v5M11 6v10M14.5 9.5v3" stroke="#0B1A3A" stroke-width="1.9" stroke-linecap="round"/></svg>
     Talky
   </a>
-  <div class="nav-links"><a href="#modes">What it does</a><a href="#pipes">Pipes</a><a href="#privacy">Privacy</a></div>
+  <div class="nav-links"><a href="#modes">What it does</a><a href="#pipes">Pipes</a><a href="#saved">Saved dictations</a><a href="#privacy">Privacy</a></div>
   <div class="nav-actions">
     <a class="nav-gh" href="https://github.com/Avivhdr/talky" aria-label="Source on GitHub">
       <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.7 7.7 0 0 1 8 4.82c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -266,7 +266,7 @@
       <article class="mode glass deep">
         <span class="tag free">No key needed</span>
         <h3>Dictate</h3>
-        <p>Hold <kbd>fn</kbd>, talk, let go. Talky types what you said wherever your cursor is. Speech turns into text on your Mac, free and offline.</p>
+        <p>Hold <kbd>fn</kbd>, talk, let go. Talky types what you said wherever your cursor is. Speech turns into text on your Mac, free and offline. Each recording is kept in Saved dictations, so you can copy it if the paste misses.</p>
         <a href="#how">The keys</a>
       </article>
       <article class="mode glass deep">
@@ -291,6 +291,7 @@
       <div class="keyrow"><dt>Hold <kbd>fn</kbd></dt><dd>Records while you hold it. When you let go, it transcribes, cleans up and pastes.</dd></div>
       <div class="keyrow"><dt>Double-tap <kbd>fn</kbd></dt><dd>Hands-free. Tap <kbd>fn</kbd> once more, or click stop on the pill, to finish. It stops by itself after five minutes.</dd></div>
       <div class="keyrow"><dt><kbd>1</kbd>–<kbd>9</kbd> while recording</dt><dd>Picks the pipe for this dictation. <kbd>0</kbd> pastes exactly what you said.</dd></div>
+      <div class="keyrow"><dt>Tap right <kbd>⌃</kbd></dt><dd>Opens Saved dictations. Copy the text there if the paste missed. Change this key in Settings.</dd></div>
       <div class="keyrow"><dt>Select text, tap right <kbd>⌥</kbd></dt><dd>Rewrites the selection in place. Pick a pipe, or hold <kbd>fn</kbd> and say your own instruction.</dd></div>
       <div class="keyrow"><dt><kbd>esc</kbd></dt><dd>Cancels a recording or a rewrite that is still running.</dd></div>
     </dl>
@@ -327,11 +328,27 @@
     </div>
   </section>
 
+  <section class="block wrap" id="saved" aria-labelledby="saved-h">
+    <h2 id="saved-h">Missed the text field? It is still there.</h2>
+    <p class="intro">Talky keeps each recording in Settings, under Saved dictations. Tap right <kbd>⌃</kbd> to open it, or change that key in Settings. Copy the text if your cursor was not in a text field. You can play the recording there. When a pipe ran, Saved dictations keeps what you said and what the pipe wrote. Both stay on your Mac.</p>
+    <div class="pipes">
+      <div class="said glass deep">
+        <p class="label">What you said</p>
+        <p class="quote">“um so can we move tomorrow’s standup to like eleven, the design review runs late”</p>
+      </div>
+      <div class="result glass deep">
+        <p class="label">Clean</p>
+        <p class="text">Can we move tomorrow’s standup to 11:00? The design review runs late.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="block wrap" id="privacy" aria-labelledby="privacy-h">
     <h2 id="privacy-h">Your words stay yours.</h2>
     <div class="facts">
       <div class="fact"><h3>No account. No telemetry.</h3><p>Talky never asks who you are and sends nothing about how you use it.</p></div>
       <div class="fact"><h3>Your voice stays on your Mac.</h3><p>Whisper turns speech into text on your Mac. Audio never leaves it, and dictation works offline.</p></div>
+      <div class="fact"><h3>Saved dictations stay on your Mac.</h3><p>Settings keeps each recording and its text. A pipe keeps what you said and what the pipe wrote. Talky does not send this list anywhere.</p></div>
       <div class="fact"><h3>You know where words go.</h3><p>Text goes to Anthropic only when a pipe runs. Without a key, nothing leaves your Mac at all.</p></div>
       <div class="fact"><h3>Your key stays on your Mac.</h3><p>Your Anthropic API key lives in <code>~/.config/talky/.env</code> and nowhere else.</p></div>
     </div>

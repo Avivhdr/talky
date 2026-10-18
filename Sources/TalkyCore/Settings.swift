@@ -8,17 +8,19 @@ public final class SettingsWindowController {
     private var window: NSWindow?
     private let configStore: ConfigStore
     private let pipeStore: PipeStore
+    private let snippetStore: SnippetStore
     private let tabState = SettingsTabState()
 
-    public init(configStore: ConfigStore, pipeStore: PipeStore) {
+    public init(configStore: ConfigStore, pipeStore: PipeStore, snippetStore: SnippetStore) {
         self.configStore = configStore
         self.pipeStore = pipeStore
+        self.snippetStore = snippetStore
     }
 
     public func show(tab: SettingsTab = .general) {
         tabState.tab = tab
         if window == nil {
-            let view = SettingsView(config: configStore, pipes: pipeStore, tabState: tabState)
+            let view = SettingsView(config: configStore, pipes: pipeStore, snippets: snippetStore, tabState: tabState)
             // About twice the area of the old 820x600 window, shrunk to fit smaller screens.
             let visible = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1440, height: 900)
             let size = NSSize(width: min(1200, visible.width - 40), height: min(860, visible.height - 40))
@@ -39,7 +41,7 @@ public final class SettingsWindowController {
     }
 }
 
-public enum SettingsTab: Hashable { case general, pipes }
+public enum SettingsTab: Hashable { case general, pipes, savedDictations }
 
 /// Shared layout values so both Settings pages put their header band and content in the same column.
 enum SettingsLayout {
@@ -54,6 +56,7 @@ final class SettingsTabState: ObservableObject {
 struct SettingsView: View {
     @ObservedObject var config: ConfigStore
     @ObservedObject var pipes: PipeStore
+    @ObservedObject var snippets: SnippetStore
     @ObservedObject var tabState: SettingsTabState
 
     var body: some View {
@@ -61,6 +64,7 @@ struct SettingsView: View {
             List(selection: selection) {
                 sidebarRow(.general, "General", "gearshape.fill", Color.gray)
                 sidebarRow(.pipes, "Pipes", "line.3.horizontal.decrease", Theme.violet)
+                sidebarRow(.savedDictations, "Saved dictations", "waveform", Theme.blue)
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 10) {
@@ -80,6 +84,7 @@ struct SettingsView: View {
             switch tabState.tab {
             case .general: GeneralTab(store: config)
             case .pipes: PipesTab(store: pipes, config: config)
+            case .savedDictations: SnippetsTab(store: snippets, openHotkey: config.config.savedDictationsHotkey)
             }
         }
         .frame(minWidth: 900, minHeight: 640)
@@ -118,6 +123,7 @@ struct GeneralTab: View {
     static let mainHotkeys = ["fn", "right_option", "right_command", "right_control", "ctrl+opt+space", "f13"]
     static let transformHotkeys = ["right_option", "right_command", "right_control", "ctrl+opt+t", "f14"]
     static let handsFreeHotkeys = ["right_command", "right_option", "right_control", "ctrl+opt+h", "f15"]
+    static let savedDictationsHotkeys = ["right_control", "right_option", "right_command", "ctrl+opt+s", "f16"]
     static let languages = [("auto", "Detect automatically"), ("en", "English"), ("he", "Hebrew"), ("es", "Spanish"),
                             ("fr", "French"), ("de", "German"), ("it", "Italian"), ("pt", "Portuguese"),
                             ("ru", "Russian"), ("ar", "Arabic"), ("zh", "Chinese"), ("ja", "Japanese")]
@@ -140,7 +146,8 @@ struct GeneralTab: View {
                     }
                 }
                 SettingsGroup("Dictation", footer: "Dictate: hold to talk, let go to type. Hands-free: tap to start, "
-                                  + "tap again to stop. Tapping the Dictate key twice also starts hands-free.") {
+                                  + "tap again to stop. Tapping the Dictate key twice also starts hands-free. "
+                                  + "Saved dictations: tap to open that page. Choose None to turn that key off.") {
                     SettingsRow("Dictate") {
                         HotkeyField(title: "Dictate", hotkey: $store.config.hotkey, suggestions: Self.mainHotkeys,
                                     others: hotkeys(except: \.hotkey))
@@ -149,6 +156,12 @@ struct GeneralTab: View {
                     SettingsRow("Hands-free") {
                         HotkeyField(title: "Hands-free", hotkey: $store.config.handsFreeHotkey, suggestions: Self.handsFreeHotkeys,
                                     others: hotkeys(except: \.handsFreeHotkey), allowsNone: true)
+                    }
+                    Divider()
+                    SettingsRow("Saved dictations") {
+                        HotkeyField(title: "Saved dictations", hotkey: $store.config.savedDictationsHotkey,
+                                    suggestions: Self.savedDictationsHotkeys,
+                                    others: hotkeys(except: \.savedDictationsHotkey), allowsNone: true)
                     }
                     Divider()
                     SettingsRow("Language") { choicePicker("Language", $store.config.transcription.language, Self.languages) }
@@ -232,6 +245,7 @@ struct GeneralTab: View {
     /// Every Talky hotkey but one, so its field can refuse a key another hotkey uses.
     func hotkeys(except own: KeyPath<Config, String>) -> [HotkeyField.Other] {
         let all: [(KeyPath<Config, String>, String)] = [(\.hotkey, "Dictate"), (\.handsFreeHotkey, "Hands-free"),
+                                                        (\.savedDictationsHotkey, "Saved dictations"),
                                                         (\.transformHotkey, "Transform selected text")]
         return all.filter { $0.0 != own }.map { HotkeyField.Other(title: $0.1, hotkey: store.config[keyPath: $0.0]) }
     }

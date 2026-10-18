@@ -10,6 +10,8 @@ public enum Paths {
 
     public static var configFile: URL { configDir.appendingPathComponent("config.json") }
     public static var pipesFile: URL { configDir.appendingPathComponent("pipes.json") }
+    public static var snippetsFile: URL { configDir.appendingPathComponent("snippets.json") }
+    public static var snippetsDirectory: URL { configDir.appendingPathComponent("snippets") }
     public static var envFile: URL { configDir.appendingPathComponent(".env") }
     public static var modelsDir: URL { configDir.appendingPathComponent("models") }
     public static var logsDir: URL {
@@ -88,6 +90,8 @@ public struct Config: Codable, Equatable {
     public var transformHotkey = "right_option"
     /// Tap to start a hands-free recording, tap again to stop. "" turns it off.
     public var handsFreeHotkey = "right_command"
+    /// Tap to open Saved dictations in Settings. "" turns it off. It does not record.
+    public var savedDictationsHotkey = "right_control"
     public var showPipesInPill = true
     public var transcription = Transcription()
     public var llm = LLM()
@@ -133,12 +137,22 @@ public struct Config: Codable, Equatable {
             throw NSError(domain: "Talky", code: 1, userInfo: [NSLocalizedDescriptionKey: "config.json must be a JSON object"])
         }
         var config = try JSONDecoder().decode(Config.self, from: JSONSerialization.data(withJSONObject: deepMerge(defaults, user)))
-        // A file from before the hands-free hotkey may use its default key for another hotkey. Leave it off then.
+        // A file from before a tap hotkey may already use that hotkey's default. Leave the new key off then.
         if user["handsFreeHotkey"] == nil,
-           [config.hotkey, config.transformHotkey].contains(where: { HotkeySpec.parse($0) == HotkeySpec.parse(config.handsFreeHotkey) }) {
+           Self.clashes(config.handsFreeHotkey, with: [config.hotkey, config.transformHotkey, config.savedDictationsHotkey]) {
             config.handsFreeHotkey = ""
         }
+        if user["savedDictationsHotkey"] == nil,
+           Self.clashes(config.savedDictationsHotkey, with: [config.hotkey, config.transformHotkey, config.handsFreeHotkey]) {
+            config.savedDictationsHotkey = ""
+        }
         return config
+    }
+
+    /// True when `key` is a real hotkey and one of `others` is the same key.
+    private static func clashes(_ key: String, with others: [String]) -> Bool {
+        guard let spec = HotkeySpec.parse(key) else { return false }
+        return others.contains { HotkeySpec.parse($0) == spec }
     }
 
     static func deepMerge(_ base: [String: Any], _ over: [String: Any]) -> [String: Any] {
@@ -204,7 +218,7 @@ public final class ConfigStore: ObservableObject {
     }
 }
 
-/// Watches the config directory so hand edits to config.json / pipes.json apply live.
+/// Watches the config directory so hand edits to config.json, pipes.json and snippets.json apply live.
 /// Editors save by renaming, so watching the directory is more reliable than the file.
 public final class DirectoryWatcher {
     private var source: DispatchSourceFileSystemObject?
