@@ -7,6 +7,7 @@ import AppKit
 ///   short tap, short tap     -> hands-free; the next press stops and transcribes
 ///   short single tap         -> ignored (recording discarded)
 /// Hands-free hotkey: a tap starts a hands-free recording, the next tap stops and transcribes.
+/// Saved-dictations hotkey: a tap opens that Settings page. It does not record.
 /// Transform hotkey with text selected opens the picker: pick a pipe (click or digit),
 /// or use the main hotkey to dictate an ad-hoc instruction.
 /// Esc cancels whatever is in flight and is never swallowed.
@@ -22,6 +23,7 @@ public final class Controller: KeyMonitorDelegate {
 
     let configStore: ConfigStore
     let pipeStore: PipeStore
+    let snippetStore: SnippetStore
     let pill = PillController()
     let recorder = AudioRecorder()
     public let transcription = TranscriptionService()
@@ -33,6 +35,8 @@ public final class Controller: KeyMonitorDelegate {
     public var onPhaseChange: ((Phase) -> Void)?
     /// Called when the hotkey is pressed before Talky can record: no speech model, or no microphone access.
     public var onNeedsSetup: (() -> Void)?
+    /// A tap of the saved-dictations hotkey. The app opens that Settings page. This does not change the recording.
+    public var onOpenSavedDictations: (() -> Void)?
 
     private var mode: RecordingMode = .hold
     private var purpose: Purpose = .dictate
@@ -48,9 +52,10 @@ public final class Controller: KeyMonitorDelegate {
 
     private var config: Config { configStore.config }
 
-    public init(configStore: ConfigStore, pipeStore: PipeStore) {
+    public init(configStore: ConfigStore, pipeStore: PipeStore, snippetStore: SnippetStore) {
         self.configStore = configStore
         self.pipeStore = pipeStore
+        self.snippetStore = snippetStore
         recorder.onLevel = { [weak self] level in self?.pill.model.level = level }
 
         let m = pill.model
@@ -104,6 +109,10 @@ public final class Controller: KeyMonitorDelegate {
             lastTapUpAt = Date()
             abortRecording()
         }
+    }
+
+    public func savedDictationsHotkeyFired() {
+        onOpenSavedDictations?()
     }
 
     public func handsFreeHotkeyFired() {
@@ -333,13 +342,14 @@ public final class Controller: KeyMonitorDelegate {
             pill.flash("Didn't catch any speech")
             return
         }
+        let samples = rec.samples
 
         phase = .processing
         pill.show(.processing("Transcribing…"))
         work = Task { [weak self] in
             guard let self else { return }
             do {
-                let transcript = try await transcription.transcribe(samples: rec.samples, config: cfg.transcription)
+                let transcript = try await transcription.transcribe(samples: samples, config: cfg.transcription)
                 try Task.checkCancellation()
                 guard !transcript.isEmpty else {
                     finish(message: "Didn't catch any speech")
@@ -350,14 +360,20 @@ public final class Controller: KeyMonitorDelegate {
                 case .dictate:
                     var output = transcript
                     var warning: String?
+                    var pipeName: String?
+                    var piped: String?
                     if let pipe, cfg.llm.enabled {
+                        pipeName = pipe.name
                         if AnthropicClient.apiKey == nil {
                             warning = "No ANTHROPIC_API_KEY, pasted the raw transcript"
                         } else {
                             pill.show(.processing(pipe.name + "…"))
                             do {
-                                output = try await llm.transform(text: transcript, instructions: pipe.prompt, config: cfg.llm)
-                                if output.isEmpty { output = transcript }
+                                let transformed = try await llm.transform(text: transcript, instructions: pipe.prompt, config: cfg.llm)
+                                if !transformed.isEmpty {
+                                    output = transformed
+                                    piped = transformed
+                                }
                             } catch {
                                 if Task.isCancelled { throw CancellationError() }
                                 warning = "\(pipe.name) failed, pasted the raw transcript. \(error.localizedDescription)"
@@ -365,6 +381,7 @@ public final class Controller: KeyMonitorDelegate {
                         }
                     }
                     try Task.checkCancellation()
+                    snippetStore.record(kind: .dictation, original: transcript, pipeName: pipeName, piped: piped, samples: samples)
                     TextIO.insert(output, restorePrevious: cfg.clipboard.restorePrevious, restoreDelayMs: cfg.clipboard.restoreDelayMs)
                     finish(message: warning, isError: true)
 
@@ -372,6 +389,7 @@ public final class Controller: KeyMonitorDelegate {
                     pill.show(.processing("“\(transcript)”"))
                     let output = try await llm.transform(text: selection, instructions: transcript, config: cfg.llm)
                     try Task.checkCancellation()
+                    snippetStore.record(kind: .instruction, original: transcript, pipeName: nil, piped: output, samples: samples)
                     TextIO.insert(output, restorePrevious: cfg.clipboard.restorePrevious, restoreDelayMs: cfg.clipboard.restoreDelayMs)
                     NotificationCenter.default.post(name: .talkySelectionTransformed, object: nil)
                     finish(message: nil)

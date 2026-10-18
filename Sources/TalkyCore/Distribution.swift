@@ -43,7 +43,7 @@ public enum Uninstaller {
         let alert = NSAlert()
         alert.messageText = "Uninstall Talky?"
         alert.informativeText = "Talky will turn off launch at login, clear its macOS permissions, move itself to the Trash and quit."
-        let deleteData = NSButton(checkboxWithTitle: "Also delete my settings, pipes and API keys", target: nil, action: nil)
+        let deleteData = NSButton(checkboxWithTitle: "Also delete my settings, pipes, saved dictations and API keys", target: nil, action: nil)
         deleteData.state = .on
         alert.accessoryView = deleteData
         alert.addButton(withTitle: "Uninstall")

@@ -5,8 +5,9 @@ import Combine
 public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let configStore = ConfigStore()
     private let pipeStore = PipeStore()
-    private lazy var controller = Controller(configStore: configStore, pipeStore: pipeStore)
-    private lazy var settings = SettingsWindowController(configStore: configStore, pipeStore: pipeStore)
+    private let snippetStore = SnippetStore()
+    private lazy var controller = Controller(configStore: configStore, pipeStore: pipeStore, snippetStore: snippetStore)
+    private lazy var settings = SettingsWindowController(configStore: configStore, pipeStore: pipeStore, snippetStore: snippetStore)
     private lazy var onboarding = OnboardingWindowController(
         transformKey: HotkeySpec.label(configStore.config.transformHotkey)
     ) { [weak self] completed in self?.onboardingEnded(completed: completed) }
@@ -30,6 +31,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
             guard let self else { return }
             if OnboardingWindowController.isDone { settings.show() } else { onboarding.show() }
         }
+        controller.onOpenSavedDictations = { [weak self] in
+            self?.settings.show(tab: .savedDictations)
+        }
 
         configStore.$config
             .removeDuplicates()
@@ -50,6 +54,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
             MainActor.assumeIsolated {
                 self?.configStore.load()
                 self?.pipeStore.load()
+                self?.snippetStore.load()
             }
         }
 
@@ -73,6 +78,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
         keyMonitor.mainSpec = HotkeySpec.parse(config.hotkey)
         keyMonitor.transformSpec = HotkeySpec.parse(config.transformHotkey)
         keyMonitor.handsFreeSpec = HotkeySpec.parse(config.handsFreeHotkey)
+        keyMonitor.savedDictationsSpec = HotkeySpec.parse(config.savedDictationsHotkey)
         keyMonitor.resetState()
         SpeechModel.shared.use(config.transcription.model)
         SpeechModel.shared.refresh()
@@ -177,7 +183,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
             addAction(menu, "Download the Speech Model", #selector(downloadSpeechModel), "")
             notes = true
         }
-        if let err = configStore.loadError ?? pipeStore.loadError {
+        if let err = configStore.loadError ?? pipeStore.loadError ?? snippetStore.loadError {
             addInfo(menu, err)
             notes = true
         }

@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import XCTest
 @testable import TalkyCore
 
@@ -140,6 +141,26 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(off.handsFreeHotkey, "")
     }
 
+    func testSavedDictationsHotkeyDefault() throws {
+        XCTAssertEqual(try Config.decode(merging: Data("{}".utf8)).savedDictationsHotkey, "right_control")
+        // An older file that already uses right ⌃ for another hotkey gets no saved-dictations hotkey.
+        let clash = try Config.decode(merging: Data(#"{"handsFreeHotkey": "right_control"}"#.utf8))
+        XCTAssertEqual(clash.savedDictationsHotkey, "")
+        XCTAssertEqual(clash.handsFreeHotkey, "right_control")
+        let dictate = try Config.decode(merging: Data(#"{"hotkey": "right_control"}"#.utf8))
+        XCTAssertEqual(dictate.savedDictationsHotkey, "")
+        XCTAssertEqual(dictate.handsFreeHotkey, "right_command")
+        // A choice the user made stays, including None and a key that matches another hotkey.
+        let off = try Config.decode(merging: Data(#"{"savedDictationsHotkey": ""}"#.utf8))
+        XCTAssertEqual(off.savedDictationsHotkey, "")
+        let kept = try Config.decode(merging: Data(#"{"handsFreeHotkey":"right_control","savedDictationsHotkey":"right_control"}"#.utf8))
+        XCTAssertEqual(kept.savedDictationsHotkey, "right_control")
+        // The saved-dictations key can take the hands-free default when the hands-free key is absent.
+        let taken = try Config.decode(merging: Data(#"{"savedDictationsHotkey": "right_command"}"#.utf8))
+        XCTAssertEqual(taken.savedDictationsHotkey, "right_command")
+        XCTAssertEqual(taken.handsFreeHotkey, "")
+    }
+
     func testKeyCheckVerdicts() {
         XCTAssertEqual(KeyCheck.interpret(status: 200, body: Data()), .works)
         if case .rejected = KeyCheck.interpret(status: 401, body: Data()) {} else { XCTFail("401 rejects the key") }
@@ -237,5 +258,79 @@ final class FittingTextHeightTests: XCTestCase {
         let narrow = height(paragraph, width: 180)
         let wide = height(paragraph, width: 900)
         XCTAssertGreaterThan(narrow, wide)
+    }
+}
+
+@MainActor
+final class SnippetStoreTests: XCTestCase {
+    func testBlankTranscriptIsNotStored() {
+        XCTAssertNil(SnippetStore.make(kind: .dictation, original: " \n ", pipeName: "Clean", piped: "Hi"))
+    }
+
+    func testPipeNameStaysWhenThePipeDidNotFinish() {
+        let snippet = SnippetStore.make(kind: .dictation, original: " um hi ", pipeName: " Formal ", piped: " \n")
+        XCTAssertEqual(snippet?.original, "um hi")
+        XCTAssertEqual(snippet?.pipeName, "Formal")
+        XCTAssertNil(snippet?.piped)
+    }
+
+    func testPipeResultIsKeptBesideTheOriginal() {
+        let snippet = SnippetStore.make(kind: .dictation, original: "um hi", pipeName: "Clean", piped: " Hi. ")
+        XCTAssertEqual(snippet?.original, "um hi")
+        XCTAssertEqual(snippet?.pipeName, "Clean")
+        XCTAssertEqual(snippet?.piped, "Hi.")
+    }
+
+    func testInstructionKeepsWhatYouSaidAndWhatTalkyTyped() {
+        let snippet = SnippetStore.make(kind: .instruction, original: "make this shorter", pipeName: nil, piped: "Send the numbers.")
+        XCTAssertEqual(snippet?.kind, .instruction)
+        XCTAssertEqual(snippet?.piped, "Send the numbers.")
+        XCTAssertNil(snippet?.pipeName)
+    }
+
+    func testNewestStaysAndOldestDrops() {
+        let first = SnippetStore.make(kind: .dictation, original: "a", pipeName: nil, piped: nil)!
+        let second = SnippetStore.make(kind: .dictation, original: "b", pipeName: nil, piped: nil)!
+        let third = SnippetStore.make(kind: .dictation, original: "c", pipeName: nil, piped: nil)!
+        var list = SnippetStore.kept([], adding: first, limit: 2).snippets
+        list = SnippetStore.kept(list, adding: second, limit: 2).snippets
+        let last = SnippetStore.kept(list, adding: third, limit: 2)
+        XCTAssertEqual(last.snippets.map(\.original), ["c", "b"])
+        XCTAssertEqual(last.removed, [first.id])
+    }
+
+    func testRecordWritesTextAndAudioAndDropsABadFile() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let audio = root.appendingPathComponent("snippets")
+        let store = SnippetStore(fileURL: root.appendingPathComponent("snippets.json"), audioDirectory: audio)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        store.record(kind: .dictation, original: "um hello", pipeName: "Clean", piped: "Hello.", samples: [0, 0.5, -0.5, 1])
+        let id = try XCTUnwrap(store.snippets.first?.id)
+        await store.waitForAudioWrites()
+
+        let again = SnippetStore(fileURL: root.appendingPathComponent("snippets.json"), audioDirectory: audio)
+        XCTAssertEqual(again.snippets, store.snippets)
+        XCTAssertEqual(again.snippets.first?.pipeName, "Clean")
+        XCTAssertEqual(again.snippets.first?.piped, "Hello.")
+        XCTAssertEqual(again.snippets.first?.duration ?? -1, 4.0 / 16_000, accuracy: 0.0001)
+        XCTAssertTrue(again.hasAudio(id))
+
+        let file = try AVAudioFile(forReading: again.audioURL(for: id))
+        XCTAssertEqual(file.fileFormat.sampleRate, 16_000)
+        XCTAssertEqual(file.fileFormat.channelCount, 1)
+        XCTAssertEqual(file.length, 4)
+
+        try "{".write(to: root.appendingPathComponent("snippets.json"), atomically: true, encoding: .utf8)
+        store.load()
+        XCTAssertNotNil(store.loadError)
+        XCTAssertEqual(store.snippets.map(\.original), ["um hello"])
+
+        let junk = audio.appendingPathComponent("not-json.wav")
+        try Data([0]).write(to: junk)
+        store.delete(id: id)
+        XCTAssertTrue(store.snippets.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.audioURL(for: id).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: junk.path))
     }
 }

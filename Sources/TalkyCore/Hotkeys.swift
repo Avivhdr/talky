@@ -150,7 +150,7 @@ public struct HotkeyCapture {
 public enum PickerKey { case up, down, choose }
 
 /// A hotkey that fires once per tap: a clean tap of a lone modifier, or a chord when its key comes up.
-/// The transform hotkey and the hands-free hotkey work this way.
+/// The transform hotkey, the hands-free hotkey and the saved-dictations hotkey work this way.
 struct TapHotkey {
     var spec: HotkeySpec?
     private var modifierDownAt: Date?
@@ -207,6 +207,8 @@ public protocol KeyMonitorDelegate: AnyObject {
     func transformHotkeyFired()
     /// A tap of the hands-free hotkey: start a hands-free recording, or stop the one in progress.
     func handsFreeHotkeyFired()
+    /// A tap of the saved-dictations hotkey. It opens that Settings page and does not record.
+    func savedDictationsHotkeyFired()
     func escapePressed()
     /// Return true to swallow the key so the digit doesn't reach the focused app.
     func digitPressed(_ n: Int) -> Bool
@@ -234,12 +236,17 @@ public final class KeyMonitor {
         get { handsFreeTap.spec }
         set { handsFreeTap.spec = newValue }
     }
+    public var savedDictationsSpec: HotkeySpec? {
+        get { savedDictationsTap.spec }
+        set { savedDictationsTap.spec = newValue }
+    }
 
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var mainDown = false
     private var transformTap = TapHotkey()
     private var handsFreeTap = TapHotkey()
+    private var savedDictationsTap = TapHotkey()
     private var swallowedKeyUps = Set<Int64>()
     private let ownPID = Int64(ProcessInfo.processInfo.processIdentifier)
 
@@ -283,6 +290,7 @@ public final class KeyMonitor {
         mainDown = false
         transformTap.reset()
         handsFreeTap.reset()
+        savedDictationsTap.reset()
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Bool {
@@ -315,13 +323,15 @@ public final class KeyMonitor {
             }
             if transformTap.flagsChanged(code: code, flags: flags) == true { async { $0.transformHotkeyFired() } }
             if handsFreeTap.flagsChanged(code: code, flags: flags) == true { async { $0.handsFreeHotkeyFired() } }
+            if savedDictationsTap.flagsChanged(code: code, flags: flags) == true { async { $0.savedDictationsHotkeyFired() } }
             return false
 
         case .keyDown:
             let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
-            // Both run, so any key also spoils a modifier tap that is in progress.
+            // Each tap hotkey runs, so any key also spoils a modifier tap that is in progress.
             let isTransformChord = transformTap.keyDown(code: code, flags: flags, isRepeat: isRepeat)
             let isHandsFreeChord = handsFreeTap.keyDown(code: code, flags: flags, isRepeat: isRepeat)
+            let isSavedChord = savedDictationsTap.keyDown(code: code, flags: flags, isRepeat: isRepeat)
             if case let .chord(k, mods)? = mainSpec, code == k, flags.intersection(HotkeySpec.chordMask) == mods {
                 if !isRepeat, !mainDown {
                     mainDown = true
@@ -329,7 +339,7 @@ public final class KeyMonitor {
                 }
                 return true
             }
-            if isTransformChord || isHandsFreeChord { return true }
+            if isTransformChord || isHandsFreeChord || isSavedChord { return true }
             if code == Self.escapeCode {
                 async { $0.escapePressed() }
                 return false
@@ -369,6 +379,10 @@ public final class KeyMonitor {
             }
             if let fired = handsFreeTap.keyUp(code: code) {
                 if fired { async { $0.handsFreeHotkeyFired() } }
+                return true
+            }
+            if let fired = savedDictationsTap.keyUp(code: code) {
+                if fired { async { $0.savedDictationsHotkeyFired() } }
                 return true
             }
             return false

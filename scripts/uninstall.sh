@@ -1,6 +1,6 @@
 #!/bin/bash
 # Removes Talky from this Mac. Same steps as Settings › Uninstall Talky, for when the app won't open.
-#   --keep-settings   keep ~/.config/talky (settings, pipes, API keys, Whisper models)
+#   --keep-settings   keep ~/.config/talky (settings, pipes, saved dictations, API keys, Whisper models)
 set -uo pipefail
 
 ID=dev.talky.Talky

@@ -25,7 +25,7 @@ It works in every app, with one key, and has no account and no telemetry. Pipes 
 - The pill floats at the bottom center of the screen over whatever app is in front. It never takes focus. It shows mode (Listening, Hands-free, Instruction), input level, elapsed time, and pipe chips numbered 1-9 plus 0 for raw.
 - The transform picker opens over a text selection when the user taps right Option.
 - Onboarding is one small window in two layers: welcome, the speech model download, two permissions (Microphone, Accessibility), then pipes with an optional Anthropic key (pipes rewrite dictation and also text the user selects), then a real try of dictation in a text box, and with a key a second try: a pipe on a draft message that is already in the box. Finishing opens Settings on Pipes.
-- Settings has two tabs: General (hotkey, language, launch at login, speech model, Claude: key, pipes on or off, model and transform hotkey, updates, uninstall) and Pipes (edit pipe prompts and test them against sample text side by side).
+- Settings has three tabs: General (hotkey, hands-free hotkey, saved-dictations hotkey, language, launch at login, speech model, Claude: key, pipes on or off, model and transform hotkey, updates, uninstall), Pipes (edit pipe prompts and test them against sample text side by side), and Saved dictations (each recording, the words, and the pipe result when a pipe ran). A tap hotkey opens Saved dictations. The Settings sidebar is the other way to open it.
 - The website is a single download page.
 
 ## Capabilities and Constraints
@@ -33,6 +33,7 @@ It works in every app, with one key, and has no account and no telemetry. Pipes 
 - macOS 14 or later, Apple silicon and Intel. Distributed as a DMG, updates through Sparkle.
 - Two layers. Dictation: whisper.cpp inside the app with a downloaded model (Whisper large-v3 turbo, 574 MB); free, offline, audio never leaves the Mac. Pipes: optional, need an Anthropic API key. Anthropic is the only API Talky supports.
 - The key is stored in `~/.config/talky/.env`.
+- Saved dictations keeps the latest 200 dictations in `~/.config/talky` (`snippets.json` and `snippets/`): the recording, the words, and the pipe result when a pipe ran. Audio and text stay on the Mac. Uninstall can delete them with the rest of that folder. The default key is right Control. Settings can change it or turn it off.
 - The project is not complicated by intent; do not add features or flows.
 
 ## Brand Commitments
