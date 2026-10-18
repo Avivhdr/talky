@@ -190,7 +190,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate 
         if notes { menu.addItem(.separator()) }
 
         addAction(menu, "Settings…", #selector(openSettings), ",")
-        if Updater.shared.isAvailable { addAction(menu, "Check for Updates…", #selector(checkForUpdates), "") }
+        addAction(menu, "Check for Updates…", #selector(checkForUpdates), "")
         menu.addItem(.separator())
         addAction(menu, "Quit Talky", #selector(quit), "q")
     }

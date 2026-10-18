@@ -33,7 +33,22 @@ public final class Updater: ObservableObject {
         }
     }
 
-    public func checkNow() { controller?.checkForUpdates(nil) }
+    public func checkNow() {
+        guard let controller else {
+            let alert = NSAlert()
+            alert.messageText = "This copy cannot check for updates"
+            alert.informativeText = "Download Talky from the website to get updates."
+            alert.addButton(withTitle: "Open Website")
+            alert.addButton(withTitle: "OK")
+            NSApp.activate(ignoringOtherApps: true)
+            if alert.runModal() == .alertFirstButtonReturn,
+               let site = URL(string: "https://usetalky.vercel.app") {
+                NSWorkspace.shared.open(site)
+            }
+            return
+        }
+        controller.checkForUpdates(nil)
+    }
 }
 
 /// Removes everything Talky put on this Mac, then moves the app to the Trash and quits.
