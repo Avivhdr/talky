@@ -133,9 +133,8 @@ struct GeneralTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                SettingsHero(title: "General",
-                             subtitle: "Hold \(HotkeySpec.label(store.config.hotkey)) to talk. Talky types wherever your cursor is.") {
-                    PillPreview(label: "Hold \(HotkeySpec.label(store.config.hotkey))", pipes: [], selectedId: nil)
+                SettingsHero(title: "General", subtitle: dictateSubtitle) {
+                    PillPreview(label: HotkeySpec.holdLabel(store.config.hotkey), pipes: [], selectedId: nil)
                 }
                 if let err = store.loadError {
                     Label(err, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
@@ -147,7 +146,7 @@ struct GeneralTab: View {
                 }
                 SettingsGroup("Dictation", footer: "Dictate: hold to talk, let go to type. Hands-free: tap to start, "
                                   + "tap again to stop. Tapping the Dictate key twice also starts hands-free. "
-                                  + "Saved dictations: tap to open that page. Choose None to turn that key off.") {
+                                  + "Saved dictations: tap to open that page. Click X, or choose None, to turn a shortcut off.") {
                     SettingsRow("Dictate") {
                         HotkeyField(title: "Dictate", hotkey: $store.config.hotkey, suggestions: Self.mainHotkeys,
                                     others: hotkeys(except: \.hotkey))
@@ -155,13 +154,13 @@ struct GeneralTab: View {
                     Divider()
                     SettingsRow("Hands-free") {
                         HotkeyField(title: "Hands-free", hotkey: $store.config.handsFreeHotkey, suggestions: Self.handsFreeHotkeys,
-                                    others: hotkeys(except: \.handsFreeHotkey), allowsNone: true)
+                                    others: hotkeys(except: \.handsFreeHotkey))
                     }
                     Divider()
                     SettingsRow("Saved dictations") {
                         HotkeyField(title: "Saved dictations", hotkey: $store.config.savedDictationsHotkey,
                                     suggestions: Self.savedDictationsHotkeys,
-                                    others: hotkeys(except: \.savedDictationsHotkey), allowsNone: true)
+                                    others: hotkeys(except: \.savedDictationsHotkey))
                     }
                     Divider()
                     SettingsRow("Language") { choicePicker("Language", $store.config.transcription.language, Self.languages) }
@@ -240,6 +239,13 @@ struct GeneralTab: View {
                 Button("Uninstall Talky…", role: .destructive) { Uninstaller.confirmAndRun() }
             }
         }
+    }
+
+    /// The General header. With no Dictate shortcut there is no key to hold.
+    private var dictateSubtitle: String {
+        let name = HotkeySpec.label(store.config.hotkey)
+        if name.isEmpty { return "Set a Dictate shortcut to talk. Talky types wherever your cursor is." }
+        return "Hold \(name) to talk. Talky types wherever your cursor is."
     }
 
     /// Every Talky hotkey but one, so its field can refuse a key another hotkey uses.
@@ -532,7 +538,7 @@ struct PipesTab: View {
         VStack(alignment: .leading, spacing: 16) {
             SettingsHero(title: "Pipes",
                          subtitle: "Press a number while you talk to pick a pipe. 0 is always the raw transcript.") {
-                PillPreview(label: "Hold \(HotkeySpec.label(config.config.hotkey))", pipes: store.pipes, selectedId: store.defaultPipeId)
+                PillPreview(label: HotkeySpec.holdLabel(config.config.hotkey), pipes: store.pipes, selectedId: store.defaultPipeId)
             }
             testInput
             ScrollViewReader { proxy in

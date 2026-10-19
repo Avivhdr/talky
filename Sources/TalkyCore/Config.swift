@@ -84,9 +84,9 @@ public enum Env {
 
 public struct Config: Codable, Equatable {
     public var enabled = true
-    /// Hold to talk, double-tap for hands-free. See HotkeySpec for the accepted names.
+    /// Hold to talk, double-tap for hands-free. "" turns it off. See HotkeySpec for the accepted names.
     public var hotkey = "fn"
-    /// Tap with text selected to open the transform picker.
+    /// Tap with text selected to open the transform picker. "" turns it off.
     public var transformHotkey = "right_option"
     /// Tap to start a hands-free recording, tap again to stop. "" turns it off.
     public var handsFreeHotkey = "right_command"

@@ -355,7 +355,9 @@ struct PickerCard: View {
             Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1).padding(.vertical, 4)
             PickerRow(model: model, index: pipes.count, key: model.hotkeyLabel, title: "Speak an instruction", icon: "mic.fill",
                       action: model.onSpeakInstruction)
-            Text("Hold \(model.hotkeyLabel) and say what to do, e.g. \"make it shorter\". ↑ ↓ and Return pick a row. Esc closes.")
+            Text(model.hotkeyLabel.isEmpty
+                 ? "Click Speak an instruction and say what to do, e.g. \"make it shorter\". ↑ ↓ and Return pick a row. Esc closes."
+                 : "Hold \(model.hotkeyLabel) and say what to do, e.g. \"make it shorter\". ↑ ↓ and Return pick a row. Esc closes.")
                 .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.62))
                 .fixedSize(horizontal: false, vertical: true)
@@ -380,7 +382,7 @@ struct PickerRow: View {
         let highlighted = model.highlighted == index
         Button(action: action) {
             HStack(spacing: 10) {
-                KeyBadge(text: key, size: 20)
+                if !key.isEmpty { KeyBadge(text: key, size: 20) }
                 if let icon { Image(systemName: icon).font(.system(size: 11)) }
                 Text(title)
                 Spacer()
