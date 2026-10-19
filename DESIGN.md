@@ -374,7 +374,7 @@ A numbered radio row inside one glass capsule.
 
 ### Inputs / Fields
 - **Native only.** The Anthropic key uses the system rounded-border secure field with a Test Key button beside it (max 420pt in Settings) and one caption line under it: a "Get a key in the Anthropic Console ↗" link when empty, then the test result (green when the key works, red when Anthropic refuses it, orange when Talky can't reach Anthropic). Prompt editors and the test text use the system text editor on the text background, 10pt radius, a primary-color 10% stroke and 8pt padding. Focus is the system focus ring.
-- **Hotkey field (Settings):** a 28pt field on the text background, 7pt radius, with a primary-color 12% stroke (20% on hover). The left part (at least 150pt, wider for a long chord) holds the hotkey as plain key caps; a hairline separates a chevron menu of suggestions, the default marked "(Default)". A click records: the stroke turns to the accent color with a 3pt accent ring at 35% outside it, the field says "Press keys…" or shows the modifiers held, and a caption under it says what works. A refused key shows its reason in system orange. Esc, a click outside the field or a closed window cancels.
+- **Hotkey field (Settings):** a 28pt field on the text background, 7pt radius, with a primary-color 12% stroke (20% on hover). The left part (at least 150pt, wider for a long chord) holds the hotkey as plain key caps. When a shortcut is set, an X at the end of that part removes it, and the field says None. A hairline separates a chevron menu of suggestions, the default marked "(Default)", and None. A click records: the stroke turns to the accent color with a 3pt accent ring at 35% outside it, the field says "Press keys…" or shows the modifiers held, and a caption under it says what works. A refused key shows its reason in system orange. Esc, a click outside the field or a closed window cancels. Every shortcut can be off.
 - The web page has no form fields.
 
 ### Navigation
@@ -402,7 +402,7 @@ The product's face, the same on every surface.
 
 **The Nothing Fake Rule.** In onboarding, anything that looks like a control works. A still pill looks pressable, so onboarding shows none: the welcome explains the hotkey with a key cap and icons, and the first real use is the Try it step.
 
-**The Idle Preview Rule.** Every still picture of the pill shows the idle state: a white 50% dot, "Hold fn" (or the user's hotkey), no waveform, no red. The red dot belongs only to a pill that is actually recording, or to the web demo while it runs.
+**The Idle Preview Rule.** Every still picture of the pill shows the idle state: a white 50% dot, "Hold fn" (or the user's hotkey, or "No shortcut" when that key is off), no waveform, no red. The red dot belongs only to a pill that is actually recording, or to the web demo while it runs.
 
 ### Rewrite Reveal (app)
 When the pipes example changes, the old text blurs away (8pt blur and fade, 0.2s ease-out). After 0.12s the new text writes in word by word, 45ms apart: each word fades in, comes into focus from a 7pt blur and settles 4pt up over 0.5s on an ease-out cubic. It needs macOS 15; before that, and with Reduce Motion, the text cross-fades.

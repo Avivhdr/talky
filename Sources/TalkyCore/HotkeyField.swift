@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// A hotkey setting in Settings. Click the field and press the new keys, or pick a suggestion from the menu.
-/// Two Talky hotkeys can't be the same key, so each field knows the others.
+/// A hotkey setting in Settings. Click the field and press the new keys, pick a suggestion, or click X to turn it off.
+/// An empty hotkey is off. Two Talky hotkeys can't be the same key, so each field knows the others.
 struct HotkeyField: View {
     struct Other {
         var title: String
@@ -14,8 +14,6 @@ struct HotkeyField: View {
     /// The first one is the default.
     let suggestions: [String]
     let others: [Other]
-    /// Adds "None" to the menu. An empty hotkey is off.
-    var allowsNone = false
 
     @StateObject private var recorder = HotkeyRecorder()
     @State private var hovering = false
@@ -47,6 +45,7 @@ struct HotkeyField: View {
         let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         return HStack(spacing: 0) {
             field
+            if showsClear { clearButton }
             Divider().frame(height: 16)
             suggestionsMenu
         }
@@ -89,6 +88,22 @@ struct HotkeyField: View {
         .accessibilityHint("Click, then press the new keys.")
     }
 
+    /// X shows only while a shortcut is set and the field is not recording.
+    private var showsClear: Bool { !hotkey.isEmpty && !recorder.isRecording }
+
+    private var clearButton: some View {
+        Button { choose("") } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.secondary)
+                .frame(width: 22, height: Self.fieldHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Remove the \(title) shortcut")
+        .accessibilityLabel("Remove \(title) shortcut")
+    }
+
     private func caps(_ keys: [String]) -> some View {
         ForEach(Array(keys.enumerated()), id: \.offset) { Keycap($0.element, plain: true) }
     }
@@ -103,10 +118,8 @@ struct HotkeyField: View {
                     .disabled(owner(of: key) != nil)
                 }
             }
-            if allowsNone {
-                Divider()
-                Toggle("None", isOn: Binding(get: { hotkey.isEmpty }, set: { _ in choose("") }))
-            }
+            Divider()
+            Toggle("None", isOn: Binding(get: { hotkey.isEmpty }, set: { _ in choose("") }))
         } label: {
             Image(systemName: "chevron.down")
                 .font(.system(size: 10, weight: .semibold))

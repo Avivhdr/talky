@@ -55,8 +55,14 @@ public enum HotkeySpec: Equatable {
         return false
     }
 
-    /// Short label for UI hints, e.g. "fn" or "⌃⌥Space".
+    /// Short label for UI hints, e.g. "fn" or "⌃⌥Space". "" when the hotkey is off.
     public static func label(_ raw: String) -> String { keycaps(raw).joined() }
+
+    /// The idle pill line: "Hold fn", or "No shortcut" when that key is off.
+    public static func holdLabel(_ raw: String) -> String {
+        let name = label(raw)
+        return name.isEmpty ? "No shortcut" : "Hold \(name)"
+    }
 
     /// One label per key, e.g. ["right ⌥"] or ["⌃", "⌥", "Space"], for drawing the hotkey as key caps.
     public static func keycaps(_ raw: String) -> [String] {

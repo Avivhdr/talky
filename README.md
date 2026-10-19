@@ -105,8 +105,8 @@ Talky watches the folder, so saving `config.json`, `pipes.json` or `snippets.jso
 ```jsonc
 {
   "enabled": true,
-  "hotkey": "fn",                     // hold to talk, double-tap for hands-free
-  "transformHotkey": "right_option",  // tap with text selected
+  "hotkey": "fn",                     // hold to talk, double-tap for hands-free. "" turns it off
+  "transformHotkey": "right_option",  // tap with text selected. "" turns it off
   "handsFreeHotkey": "right_command", // tap to start hands-free, tap again to stop. "" turns it off
   "savedDictationsHotkey": "right_control", // tap to open Saved dictations. "" turns it off
   "showPipesInPill": true,
@@ -134,7 +134,7 @@ Talky watches the folder, so saving `config.json`, `pipes.json` or `snippets.jso
 
 ### Hotkey names
 
-The easiest way to change a hotkey is in Settings, General. Click the Dictate, Hands-free or Transform selected text field and press the new keys: tap one modifier key by itself (`fn`, right `⌥`), or press a key with `⌃`, `⌥` or `⌘` (`⌃⌥Space`). Esc cancels. The menu beside each field has suggestions. Talky refuses a plain key or a `⇧`-only chord, because that key would stop typing in every app, and it refuses a key that another hotkey already uses. The Hands-free menu also has None, which turns that hotkey off.
+The easiest way to change a hotkey is in Settings, General. Click the Dictate, Hands-free, Saved dictations or Transform selected text field and press the new keys: tap one modifier key by itself (`fn`, right `⌥`), or press a key with `⌃`, `⌥` or `⌘` (`⌃⌥Space`). Esc cancels. The menu beside each field has suggestions, and None. Talky refuses a plain key or a `⇧`-only chord, because that key would stop typing in every app, and it refuses a key that another hotkey already uses. Click X on a field, or choose None, to turn that shortcut off. You can set one again later. An empty string in `config.json` does the same.
 
 In `config.json`, a hotkey is either a single modifier or a chord.
 

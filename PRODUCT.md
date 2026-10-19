@@ -33,7 +33,7 @@ It works in every app, with one key, and has no account and no telemetry. Pipes 
 - macOS 14 or later, Apple silicon and Intel. Distributed as a DMG, updates through Sparkle.
 - Two layers. Dictation: whisper.cpp inside the app with a downloaded model (Whisper large-v3 turbo, 574 MB); free, offline, audio never leaves the Mac. Pipes: optional, need an Anthropic API key. Anthropic is the only API Talky supports.
 - The key is stored in `~/.config/talky/.env`.
-- Saved dictations keeps the latest 200 dictations in `~/.config/talky` (`snippets.json` and `snippets/`): the recording, the words, and the pipe result when a pipe ran. Audio and text stay on the Mac. Uninstall can delete them with the rest of that folder. The default key is right Control. Settings can change it or turn it off.
+- Saved dictations keeps the latest 200 dictations in `~/.config/talky` (`snippets.json` and `snippets/`): the recording, the words, and the pipe result when a pipe ran. Audio and text stay on the Mac. Uninstall can delete them with the rest of that folder. The default key is right Control. Settings can change any shortcut or turn it off. The action then has no key until the user sets one.
 - The project is not complicated by intent; do not add features or flows.
 
 ## Brand Commitments

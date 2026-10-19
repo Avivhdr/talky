@@ -15,11 +15,15 @@ final class HotkeyTests: XCTestCase {
         XCTAssertEqual(HotkeySpec.parse("f13"), .chord(keyCode: 105, modifiers: []))
         XCTAssertNil(HotkeySpec.parse("hyper+q"))
         XCTAssertNil(HotkeySpec.parse("ctrl+nope"))
+        XCTAssertNil(HotkeySpec.parse(""), "an empty hotkey is off")
     }
 
     func testLabels() {
         XCTAssertEqual(HotkeySpec.label("fn"), "fn")
         XCTAssertEqual(HotkeySpec.label("ctrl+opt+space"), "⌃⌥Space")
+        XCTAssertEqual(HotkeySpec.label(""), "")
+        XCTAssertEqual(HotkeySpec.holdLabel("fn"), "Hold fn")
+        XCTAssertEqual(HotkeySpec.holdLabel(""), "No shortcut")
         XCTAssertEqual(HotkeySpec.keycaps("right_option"), ["right ⌥"])
         XCTAssertEqual(HotkeySpec.keycaps("cmd + shift + d"), ["⌘", "⇧", "D"])
     }
