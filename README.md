@@ -22,7 +22,7 @@ No accounts and no telemetry. Talky is free and open source, under the [MIT Lice
 | Select text, tap right `⌥`, then hold `fn` | Dictate your own instruction ("make this friendlier", "translate to Spanish") and it gets applied to the selection. Or pick "Speak an instruction" in the picker: it records hands-free until you tap `fn`, press Return or click stop. Esc cancels. |
 | `Esc` | Drops a recording, kills a transcription or LLM call already running, or closes the picker. Talky only watches Esc, so it still reaches the app you're typing in. |
 
-The pill at the bottom of the screen shows that the mic is live, which mode you're in (Listening, Hands-free, Instruction), the input level and elapsed time.
+The pill at the bottom of the screen you are typing on shows that the mic is live, which mode you're in (Listening, Hands-free, Instruction), the input level and elapsed time.
 
 Every dictation is kept in Settings, under Saved dictations. Tap right `⌃` to open that page. You can change the key in Settings, under General. Each row has the recording, the words, and, when a pipe ran, what the pipe wrote. Copy the text from there if the cursor was not in a text field. Talky keeps the latest 200. The sound and the text stay on your Mac.
 

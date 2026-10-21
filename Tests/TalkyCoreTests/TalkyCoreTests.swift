@@ -338,3 +338,25 @@ final class SnippetStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: junk.path))
     }
 }
+
+@MainActor
+final class PillScreenTests: XCTestCase {
+    // A 1440x900 main display, with a 1920x1080 display to its right whose bottom edge lines up.
+    let screens = [CGRect(x: 0, y: 0, width: 1440, height: 900), CGRect(x: 1440, y: 0, width: 1920, height: 1080)]
+
+    func testWindowOnEachScreen() {
+        XCTAssertEqual(PillController.screenIndex(containing: CGRect(x: 100, y: 100, width: 800, height: 600), in: screens), 0)
+        // Accessibility y runs down from the top of the main display, so the right display starts at y = -180.
+        XCTAssertEqual(PillController.screenIndex(containing: CGRect(x: 1600, y: -100, width: 800, height: 600), in: screens), 1)
+    }
+
+    func testWindowAcrossTwoScreensPicksTheLargerPart() {
+        XCTAssertEqual(PillController.screenIndex(containing: CGRect(x: 1300, y: 100, width: 800, height: 600), in: screens), 1)
+        XCTAssertEqual(PillController.screenIndex(containing: CGRect(x: 800, y: 100, width: 800, height: 600), in: screens), 0)
+    }
+
+    func testWindowOffEveryScreen() {
+        XCTAssertNil(PillController.screenIndex(containing: CGRect(x: -2000, y: 100, width: 800, height: 600), in: screens))
+        XCTAssertNil(PillController.screenIndex(containing: .zero, in: []))
+    }
+}

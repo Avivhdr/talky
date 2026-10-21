@@ -64,6 +64,8 @@ public final class PillController {
     private let panel = PillPanel()
     private let hosting: FirstMouseHostingView<PillRootView>
     private var hideWork: DispatchWorkItem?
+    /// While the pill shows, checks which screen has focus and moves the pill there.
+    private var follow: Timer?
 
     public init() {
         hosting = FirstMouseHostingView(rootView: PillRootView(model: model))
@@ -77,10 +79,20 @@ public final class PillController {
         panel.orderFrontRegardless()
         // SwiftUI can finish laying out wrapped text a tick later; measure again so nothing gets clipped.
         DispatchQueue.main.async { [weak self] in self?.relayout() }
+        if follow == nil {
+            follow = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let screen = Self.focusedScreen(), screen != self.panel.screen else { return }
+                    self.relayout()
+                }
+            }
+        }
     }
 
     public func hide() {
         hideWork?.cancel()
+        follow?.invalidate()
+        follow = nil
         model.content = .hidden
         panel.orderOut(nil)
     }
@@ -92,16 +104,62 @@ public final class PillController {
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
     }
 
-    /// Size the panel to the SwiftUI content and pin it bottom-center on the screen with the mouse.
+    /// Size the panel to the SwiftUI content and pin it bottom-center on the screen the user is working on.
     func relayout() {
         hosting.layoutSubtreeIfNeeded()
         let size = hosting.fittingSize
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
-        guard let vf = screen?.visibleFrame else { return }
+        guard let vf = (Self.focusedScreen() ?? NSScreen.main)?.visibleFrame else { return }
         // The root view pads 14pt for the shadow, so the visible pill still sits 24pt above the Dock.
         let origin = NSPoint(x: vf.midX - size.width / 2, y: vf.minY + 10)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
+    }
+
+    /// The screen holding the focused window of the frontmost app, so the pill shows where the user types
+    /// even when the pointer rests on another display. Falls back to the screen with the mouse.
+    static func focusedScreen() -> NSScreen? {
+        let screens = NSScreen.screens
+        if let rect = focusedWindowRect(), let i = screenIndex(containing: rect, in: screens.map(\.frame)) {
+            return screens[i]
+        }
+        let mouse = NSEvent.mouseLocation
+        return screens.first { NSMouseInRect(mouse, $0.frame, false) }
+    }
+
+    /// The focused window's frame in Accessibility coordinates: origin at the top left of the main display, y down.
+    private static func focusedWindowRect() -> CGRect? {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
+        // Talky answers Accessibility requests on its main thread, so asking itself from here could block.
+        if app.processIdentifier == ProcessInfo.processInfo.processIdentifier {
+            guard let frame = NSApp.keyWindow?.frame, let main = NSScreen.screens.first else { return nil }
+            return CGRect(x: frame.minX, y: main.frame.maxY - frame.maxY, width: frame.width, height: frame.height)
+        }
+        let el = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(el, 0.1)
+        var window: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(el, kAXFocusedWindowAttribute as CFString, &window) == .success,
+              let window, CFGetTypeID(window) == AXUIElementGetTypeID() else { return nil }
+        let win = window as! AXUIElement
+        var posValue: CFTypeRef?, sizeValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(win, kAXPositionAttribute as CFString, &posValue) == .success,
+              AXUIElementCopyAttributeValue(win, kAXSizeAttribute as CFString, &sizeValue) == .success,
+              let posValue, let sizeValue else { return nil }
+        var pos = CGPoint.zero, size = CGSize.zero
+        guard AXValueGetValue(posValue as! AXValue, .cgPoint, &pos),
+              AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) else { return nil }
+        return CGRect(origin: pos, size: size)
+    }
+
+    /// The screen that shows most of `rect`. `rect` is in Accessibility coordinates and `screens` in AppKit
+    /// coordinates (origin at the bottom left of the main display, y up). The first screen is the main display.
+    static func screenIndex(containing rect: CGRect, in screens: [CGRect]) -> Int? {
+        guard let main = screens.first else { return nil }
+        let flipped = CGRect(x: rect.minX, y: main.maxY - rect.maxY, width: rect.width, height: rect.height)
+        let areas = screens.map { s -> CGFloat in
+            let overlap = s.intersection(flipped)
+            return overlap.isNull ? 0 : overlap.width * overlap.height
+        }
+        guard let best = areas.indices.max(by: { areas[$0] < areas[$1] }), areas[best] > 0 else { return nil }
+        return best
     }
 }
 
