@@ -146,7 +146,9 @@ struct GeneralTab: View {
                 }
                 SettingsGroup("Dictation", footer: "Dictate: hold to talk, let go to type. Hands-free: tap to start, "
                                   + "tap again to stop. Tapping the Dictate key twice also starts hands-free. "
-                                  + "Saved dictations: tap to open that page. Click X, or choose None, to turn a shortcut off.") {
+                                  + "Saved dictations: tap to open that page. Click X, or choose None, to turn a shortcut off. "
+                                  + "Copy to clipboard, Only if not pasted: when a text field has the cursor, Talky pastes "
+                                  + "and puts back what you had copied.") {
                     SettingsRow("Dictate") {
                         HotkeyField(title: "Dictate", hotkey: $store.config.hotkey, suggestions: Self.mainHotkeys,
                                     others: hotkeys(except: \.hotkey))
@@ -164,6 +166,15 @@ struct GeneralTab: View {
                     }
                     Divider()
                     SettingsRow("Language") { choicePicker("Language", $store.config.transcription.language, Self.languages) }
+                    Divider()
+                    SettingsRow("Copy to clipboard") {
+                        Picker("Copy to clipboard", selection: $store.config.clipboard.copyResult) {
+                            Text("Always").tag(Config.Clipboard.CopyResult.always)
+                            Text("Only if not pasted").tag(Config.Clipboard.CopyResult.whenNotPasted)
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                    }
                     Divider()
                     SettingsRow("Launch at login") {
                         Toggle("Launch at login", isOn: $launchAtLogin)

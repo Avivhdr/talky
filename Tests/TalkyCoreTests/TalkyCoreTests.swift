@@ -132,7 +132,17 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(c.transcription.language, "he")
         XCTAssertEqual(c.transcription.model, "large-v3-turbo-q5_0")
         XCTAssertEqual(c.handsFree.maxSeconds, 300)
-        XCTAssertFalse(c.clipboard.restorePrevious)
+        XCTAssertEqual(c.clipboard.copyResult, .always)
+    }
+
+    func testCopyResultFromOlderFile() throws {
+        let restored = try Config.decode(merging: Data(#"{"clipboard": {"restorePrevious": true}}"#.utf8))
+        XCTAssertEqual(restored.clipboard.copyResult, .whenNotPasted)
+        let kept = try Config.decode(merging: Data(#"{"clipboard": {"restorePrevious": false}}"#.utf8))
+        XCTAssertEqual(kept.clipboard.copyResult, .always)
+        // The new key wins over the old one.
+        let both = try Config.decode(merging: Data(#"{"clipboard": {"restorePrevious": true, "copyResult": "always"}}"#.utf8))
+        XCTAssertEqual(both.clipboard.copyResult, .always)
     }
 
     func testHandsFreeHotkeyDefault() throws {
@@ -183,7 +193,7 @@ final class ConfigTests: XCTestCase {
 
     func testRoundTrip() throws {
         var c = Config()
-        c.clipboard.restorePrevious = true
+        c.clipboard.copyResult = .whenNotPasted
         XCTAssertEqual(try Config.decode(merging: c.encoded()), c)
     }
 

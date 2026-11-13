@@ -382,7 +382,7 @@ public final class Controller: KeyMonitorDelegate {
                     }
                     try Task.checkCancellation()
                     snippetStore.record(kind: .dictation, original: transcript, pipeName: pipeName, piped: piped, samples: samples)
-                    TextIO.insert(output, restorePrevious: cfg.clipboard.restorePrevious, restoreDelayMs: cfg.clipboard.restoreDelayMs)
+                    TextIO.insert(output, clipboard: cfg.clipboard)
                     finish(message: warning, isError: true)
 
                 case .instruction(let selection):
@@ -390,7 +390,7 @@ public final class Controller: KeyMonitorDelegate {
                     let output = try await llm.transform(text: selection, instructions: transcript, config: cfg.llm)
                     try Task.checkCancellation()
                     snippetStore.record(kind: .instruction, original: transcript, pipeName: nil, piped: output, samples: samples)
-                    TextIO.insert(output, restorePrevious: cfg.clipboard.restorePrevious, restoreDelayMs: cfg.clipboard.restoreDelayMs)
+                    TextIO.insert(output, clipboard: cfg.clipboard)
                     NotificationCenter.default.post(name: .talkySelectionTransformed, object: nil)
                     finish(message: nil)
                 }
@@ -450,7 +450,7 @@ public final class Controller: KeyMonitorDelegate {
             do {
                 let output = try await llm.transform(text: selection, instructions: pipe.prompt, config: cfg.llm)
                 try Task.checkCancellation()
-                TextIO.insert(output, restorePrevious: cfg.clipboard.restorePrevious, restoreDelayMs: cfg.clipboard.restoreDelayMs)
+                TextIO.insert(output, clipboard: cfg.clipboard)
                 NotificationCenter.default.post(name: .talkySelectionTransformed, object: nil)
                 finish(message: nil)
             } catch {

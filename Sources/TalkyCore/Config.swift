@@ -118,9 +118,18 @@ public struct Config: Codable, Equatable {
     }
 
     public struct Clipboard: Codable, Equatable {
-        /// false: the result stays on the clipboard. true: put back what was there before.
-        public var restorePrevious = false
+        /// When the result stays on the clipboard after Talky pastes it.
+        public var copyResult = CopyResult.always
+        /// How long to wait after Cmd-V before putting back what was on the clipboard.
         public var restoreDelayMs = 500.0
+
+        public enum CopyResult: String, Codable, Sendable {
+            /// The result stays on the clipboard after every paste.
+            case always
+            /// Talky puts back what was on the clipboard when a text field had focus.
+            /// With no text field the result stays, so it can be pasted by hand.
+            case whenNotPasted
+        }
     }
 
     public struct HandsFree: Codable, Equatable {
@@ -137,6 +146,11 @@ public struct Config: Codable, Equatable {
             throw NSError(domain: "Talky", code: 1, userInfo: [NSLocalizedDescriptionKey: "config.json must be a JSON object"])
         }
         var config = try JSONDecoder().decode(Config.self, from: JSONSerialization.data(withJSONObject: deepMerge(defaults, user)))
+        // Files from before copyResult had restorePrevious. true never kept the result; the closest choice keeps it only when not pasted.
+        if let clipboard = user["clipboard"] as? [String: Any], clipboard["copyResult"] == nil,
+           clipboard["restorePrevious"] as? Bool == true {
+            config.clipboard.copyResult = .whenNotPasted
+        }
         // A file from before a tap hotkey may already use that hotkey's default. Leave the new key off then.
         if user["handsFreeHotkey"] == nil,
            Self.clashes(config.handsFreeHotkey, with: [config.hotkey, config.transformHotkey, config.savedDictationsHotkey]) {
