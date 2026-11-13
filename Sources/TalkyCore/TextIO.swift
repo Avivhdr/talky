@@ -31,7 +31,10 @@ public enum TextIO {
     static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
 
     /// Puts text at the cursor of the focused app via the pasteboard and Cmd-V.
-    public static func insert(_ text: String, restorePrevious: Bool, restoreDelayMs: Double) {
+    /// With `.whenNotPasted`, the old clipboard comes back only when a text field had focus.
+    /// Otherwise the result stays on the clipboard so it can be pasted by hand.
+    public static func insert(_ text: String, clipboard: Config.Clipboard) {
+        let restorePrevious = clipboard.copyResult == .whenNotPasted && focusAcceptsText()
         let pb = NSPasteboard.general
         let snapshot = restorePrevious ? PasteboardSnapshot(pb) : nil
         pb.clearContents()
@@ -42,7 +45,7 @@ public enum TextIO {
         postKey(9, flags: .maskCommand) // v
 
         if let snapshot {
-            DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelayMs / 1000) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + clipboard.restoreDelayMs / 1000) {
                 // Don't clobber something the user copied in the meantime.
                 if pb.changeCount == ourChange { snapshot.restore(pb) }
             }
@@ -80,6 +83,32 @@ public enum TextIO {
         let text = (view.string as NSString).substring(with: view.selectedRange())
         return text.isEmpty ? nil : text
     }
+
+    /// True when the focused element takes typed text, so Cmd-V lands somewhere.
+    /// It errs toward false: apps that hide their text fields from Accessibility (some Electron apps,
+    /// Terminal) count as no text field, and the result stays on the clipboard as before.
+    static func focusAcceptsText() -> Bool {
+        if NSApp.isActive {
+            guard let view = NSApp.keyWindow?.firstResponder as? NSTextView else { return false }
+            return view.isEditable
+        }
+        let system = AXUIElementCreateSystemWide()
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+              let el = focused, CFGetTypeID(el) == AXUIElementGetTypeID() else { return false }
+        let element = el as! AXUIElement
+        func settable(_ attribute: String) -> Bool {
+            var result: DarwinBoolean = false
+            return AXUIElementIsAttributeSettable(element, attribute as CFString, &result) == .success && result.boolValue
+        }
+        if settable(kAXSelectedTextRangeAttribute) { return true }
+        // Sliders and checkboxes have a settable value too, so the value only counts on a text role.
+        var role: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
+        return textRoles.contains(role as? String ?? "") && settable(kAXValueAttribute)
+    }
+
+    static let textRoles: Set<String> = [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole, "AXSearchField"]
 
     static func axSelectedText() -> String? {
         let system = AXUIElementCreateSystemWide()

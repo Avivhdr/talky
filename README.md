@@ -24,7 +24,9 @@ No accounts and no telemetry. Talky is free and open source, under the [MIT Lice
 
 The pill at the bottom of the screen you are typing on shows that the mic is live, which mode you're in (Listening, Hands-free, Instruction), the input level and elapsed time.
 
-Every dictation is kept in Settings, under Saved dictations. Tap right `⌃` to open that page. You can change the key in Settings, under General. Each row has the recording, the words, and, when a pipe ran, what the pipe wrote. Copy the text from there if the cursor was not in a text field. Talky keeps the latest 200. The sound and the text stay on your Mac.
+Every dictation is kept in Settings, under Saved dictations. Tap right `⌃` to open that page. You can change the key in Settings, under General. Each row has the recording, the words, and, when a pipe ran, what the pipe wrote. Copy the text from there if the cursor was not in a text field.
+
+Talky pastes through the clipboard. Settings, General, Copy to clipboard decides what stays there afterwards. Always (the default) leaves the result on the clipboard. Only if not pasted puts back what you had copied when a text field had the cursor, and leaves the result when none did, so you can paste it by hand. Talky asks Accessibility whether the focused element takes text. Apps that hide their text fields from it, such as Terminal and some Electron apps, count as no text field, so the result stays. Talky keeps the latest 200. The sound and the text stay on your Mac.
 
 ## Install
 
@@ -122,7 +124,8 @@ Talky watches the folder, so saving `config.json`, `pipes.json` or `snippets.jso
     "timeoutSeconds": 30
   },
   "clipboard": {
-    "restorePrevious": false,         // false: the result stays on the clipboard. true: put back what you had
+    "copyResult": "always",           // "always": the result stays on the clipboard. "whenNotPasted": put back
+                                      // what you had when a text field had the cursor, keep the result otherwise
     "restoreDelayMs": 500
   },
   "handsFree": {
@@ -173,7 +176,7 @@ Every pipe runs inside a fixed wrapper prompt that tells Claude to return only t
 - **The Anthropic key test fails.** "Anthropic didn't accept this key" means the key is wrong or revoked, and Talky doesn't save it. Copy it again from the Anthropic Console. If Talky can't reach Anthropic, it saves the key anyway, and you can test it again later.
 - **Hotkey dead in password fields.** Expected. macOS secure input blocks all event taps while a password field has focus.
 - **"Didn't catch any speech".** The recording was under 0.3 s or nearly silent. Check the input device in System Settings, Sound.
-- **Text doesn't paste in one app.** A few apps ignore synthetic Cmd-V. The text is still on the clipboard, so paste it by hand.
+- **Text doesn't paste in one app.** A few apps ignore synthetic Cmd-V. With Copy to clipboard set to Always (the default), the text is still on the clipboard, so paste it by hand. With Only if not pasted, copy it from Saved dictations.
 - **Transform picker says "Select some text first".** Talky reads the selection through Accessibility and falls back to a synthetic Cmd-C for apps that don't expose it. Some apps support neither.
 - **Hotkey stopped working after a rebuild.** See "Rebuilds and lost permissions".
 
