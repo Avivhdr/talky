@@ -147,8 +147,8 @@ struct GeneralTab: View {
                 SettingsGroup("Dictation", footer: "Dictate: hold to talk, let go to type. Hands-free: tap to start, "
                                   + "tap again to stop. Tapping the Dictate key twice also starts hands-free. "
                                   + "Saved dictations: tap to open that page. Click X, or choose None, to turn a shortcut off. "
-                                  + "Copy to clipboard, Only if not pasted: when a text field has the cursor, Talky pastes "
-                                  + "and puts back what you had copied.") {
+                                  + "Copy to clipboard, Only if not pasted: when the app takes the paste, Talky "
+                                  + "puts back what you had copied.") {
                     SettingsRow("Dictate") {
                         HotkeyField(title: "Dictate", hotkey: $store.config.hotkey, suggestions: Self.mainHotkeys,
                                     others: hotkeys(except: \.hotkey))

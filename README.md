@@ -26,7 +26,7 @@ The pill at the bottom of the screen you are typing on shows that the mic is liv
 
 Every dictation is kept in Settings, under Saved dictations. Tap right `⌃` to open that page. You can change the key in Settings, under General. Each row has the recording, the words, and, when a pipe ran, what the pipe wrote. Copy the text from there if the cursor was not in a text field.
 
-Talky pastes through the clipboard. Settings, General, Copy to clipboard decides what stays there afterwards. Always (the default) leaves the result on the clipboard. Only if not pasted puts back what you had copied when a text field had the cursor, and leaves the result when none did, so you can paste it by hand. Talky asks Accessibility whether the focused element takes text. Apps that hide their text fields from it, such as Terminal and some Electron apps, count as no text field, so the result stays. Talky keeps the latest 200. The sound and the text stay on your Mac.
+Talky pastes through the clipboard. Settings, General, Copy to clipboard decides what stays there afterwards. Always (the default) leaves the result on the clipboard. Only if not pasted puts back what you had copied when the app took the paste, and leaves the result when nothing did, so you can paste it by hand. Talky knows because the app reads the text from the clipboard only when it pastes, so this works in every app. Talky keeps the latest 200. The sound and the text stay on your Mac.
 
 ## Install
 
@@ -125,7 +125,7 @@ Talky watches the folder, so saving `config.json`, `pipes.json` or `snippets.jso
   },
   "clipboard": {
     "copyResult": "always",           // "always": the result stays on the clipboard. "whenNotPasted": put back
-                                      // what you had when a text field had the cursor, keep the result otherwise
+                                      // what you had when an app took the paste, keep the result otherwise
     "restoreDelayMs": 500
   },
   "handsFree": {
