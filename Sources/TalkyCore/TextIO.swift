@@ -26,28 +26,60 @@ struct PasteboardSnapshot {
     }
 }
 
+/// Puts text on the pasteboard as a promise, so the pasteboard calls back when an app reads it.
+/// An app reads it only when it takes the paste, so this works in every app,
+/// also in apps that hide their text fields from Accessibility.
+/// The transient mark makes clipboard managers skip it without reading it.
+final class PasteWatch: NSObject, NSPasteboardItemDataProvider {
+    let text: String
+    private(set) var wasRead = false
+
+    init(text: String) { self.text = text }
+
+    func write(to pb: NSPasteboard) {
+        let item = NSPasteboardItem()
+        item.setDataProvider(self, forTypes: [.string])
+        item.setData(Data(), forType: TextIO.transientType)
+        pb.clearContents()
+        pb.writeObjects([item])
+    }
+
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
+        wasRead = true
+        item.setString(text, forType: type)
+    }
+}
+
 @MainActor
 public enum TextIO {
-    static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+    nonisolated static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
 
     /// Puts text at the cursor of the focused app via the pasteboard and Cmd-V.
-    /// With `.whenNotPasted`, the old clipboard comes back only when a text field had focus.
-    /// Otherwise the result stays on the clipboard so it can be pasted by hand.
+    /// With `.whenNotPasted`, the old clipboard comes back only when an app read the text.
+    /// When nothing read it, the result stays on the clipboard so it can be pasted by hand.
     public static func insert(_ text: String, clipboard: Config.Clipboard) {
-        let restorePrevious = clipboard.copyResult == .whenNotPasted && focusAcceptsText()
         let pb = NSPasteboard.general
-        let snapshot = restorePrevious ? PasteboardSnapshot(pb) : nil
-        pb.clearContents()
-        pb.setString(text, forType: .string)
-        // Clipboard managers skip transient entries; only mark it when we're about to put the old one back.
-        if restorePrevious { pb.setData(Data(), forType: transientType) }
+        guard clipboard.copyResult == .whenNotPasted else {
+            pb.clearContents()
+            pb.setString(text, forType: .string)
+            postKey(9, flags: .maskCommand) // v
+            return
+        }
+        let snapshot = PasteboardSnapshot(pb)
+        let watch = PasteWatch(text: text)
+        watch.write(to: pb)
         let ourChange = pb.changeCount
         postKey(9, flags: .maskCommand) // v
 
-        if let snapshot {
-            DispatchQueue.main.asyncAfter(deadline: .now() + clipboard.restoreDelayMs / 1000) {
-                // Don't clobber something the user copied in the meantime.
-                if pb.changeCount == ourChange { snapshot.restore(pb) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + clipboard.restoreDelayMs / 1000) {
+            // Don't clobber something the user copied in the meantime.
+            guard pb.changeCount == ourChange else { return }
+            if watch.wasRead {
+                snapshot.restore(pb)
+            } else {
+                // Nothing took the paste. Write the text without the transient mark, so clipboard managers keep it too.
+                pb.clearContents()
+                pb.setString(text, forType: .string)
             }
         }
     }
@@ -83,32 +115,6 @@ public enum TextIO {
         let text = (view.string as NSString).substring(with: view.selectedRange())
         return text.isEmpty ? nil : text
     }
-
-    /// True when the focused element takes typed text, so Cmd-V lands somewhere.
-    /// It errs toward false: apps that hide their text fields from Accessibility (some Electron apps,
-    /// Terminal) count as no text field, and the result stays on the clipboard as before.
-    static func focusAcceptsText() -> Bool {
-        if NSApp.isActive {
-            guard let view = NSApp.keyWindow?.firstResponder as? NSTextView else { return false }
-            return view.isEditable
-        }
-        let system = AXUIElementCreateSystemWide()
-        var focused: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-              let el = focused, CFGetTypeID(el) == AXUIElementGetTypeID() else { return false }
-        let element = el as! AXUIElement
-        func settable(_ attribute: String) -> Bool {
-            var result: DarwinBoolean = false
-            return AXUIElementIsAttributeSettable(element, attribute as CFString, &result) == .success && result.boolValue
-        }
-        if settable(kAXSelectedTextRangeAttribute) { return true }
-        // Sliders and checkboxes have a settable value too, so the value only counts on a text role.
-        var role: CFTypeRef?
-        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
-        return textRoles.contains(role as? String ?? "") && settable(kAXValueAttribute)
-    }
-
-    static let textRoles: Set<String> = [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole, "AXSearchField"]
 
     static func axSelectedText() -> String? {
         let system = AXUIElementCreateSystemWide()

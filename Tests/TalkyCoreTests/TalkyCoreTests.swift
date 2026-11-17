@@ -212,6 +212,28 @@ final class ConfigTests: XCTestCase {
     }
 }
 
+final class PasteWatchTests: XCTestCase {
+    func testReadIsNoticed() {
+        let pb = NSPasteboard(name: NSPasteboard.Name("talky.test.\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let watch = PasteWatch(text: "hello")
+        watch.write(to: pb)
+        XCTAssertFalse(watch.wasRead)
+        XCTAssertTrue(pb.types?.contains(TextIO.transientType) ?? false)
+        XCTAssertEqual(pb.string(forType: .string), "hello")
+        XCTAssertTrue(watch.wasRead)
+    }
+
+    func testLookingAtTypesIsNotARead() {
+        let pb = NSPasteboard(name: NSPasteboard.Name("talky.test.\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let watch = PasteWatch(text: "hello")
+        watch.write(to: pb)
+        XCTAssertTrue(pb.types?.contains(.string) ?? false)
+        XCTAssertFalse(watch.wasRead)
+    }
+}
+
 final class TextTests: XCTestCase {
     func testTranscriptCleanup() {
         XCTAssertEqual(TranscriptionService.cleanTranscript(" [BLANK_AUDIO] "), "")

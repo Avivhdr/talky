@@ -126,8 +126,8 @@ public struct Config: Codable, Equatable {
         public enum CopyResult: String, Codable, Sendable {
             /// The result stays on the clipboard after every paste.
             case always
-            /// Talky puts back what was on the clipboard when a text field had focus.
-            /// With no text field the result stays, so it can be pasted by hand.
+            /// Talky puts back what was on the clipboard when an app read the pasted text.
+            /// When nothing read it, the result stays, so it can be pasted by hand.
             case whenNotPasted
         }
     }
