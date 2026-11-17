@@ -3,12 +3,12 @@
     <channel>
         <title>Talky</title>
         <item>
-            <title>0.6.0</title>
-            <pubDate>Sat, 14 Nov 2026 11:38:18 +0100</pubDate>
-            <sparkle:version>8</sparkle:version>
-            <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+            <title>0.7.0</title>
+            <pubDate>Tue, 17 Nov 2026 10:32:01 +0100</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://usetalky.vercel.app/downloads/Talky-0.6.0.zip" length="9166332" type="application/octet-stream" sparkle:edSignature="trS4OdakYvvvz+Ufw+6nli0ErWTpSOzQAZMDpS/+b2quBBOcFVNt7wD6C5yqLdeUb41pg6IOcy24FurkqzBfAQ=="/>
+            <enclosure url="https://usetalky.vercel.app/downloads/Talky-0.7.0.zip" length="9166616" type="application/octet-stream" sparkle:edSignature="2DPWxdLpORdvfiHkxbKxu3Khu2AY0WbPC5yfv+6Wgbo75IEHEZTZlpAnbh2qgyJH3hGOVAo3MfYzMVrFJUo1BA=="/>
         </item>
     </channel>
 </rss>
